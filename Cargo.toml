@@ -8,3 +8,6 @@ edition = "2021"
 [dependencies]
 casper-contract = "1.4.4"
 casper-types = "1.5.0"
+casper-event-standard = { version = "0.2.0", default-features = false }
+ed25519-compact = { version = "2.0.4", default-features= false }
+sha2 = { version = "0.10.6", default-features = false }

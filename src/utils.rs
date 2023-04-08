@@ -8,7 +8,7 @@ use casper_contract::{
 use casper_types::{
     api_error,
     bytesrepr::{self, FromBytes, ToBytes},
-    ApiError, Key,
+    ApiError, Key, URef,
 };
 
 use crate::errors::BridgeError;
@@ -82,4 +82,37 @@ pub fn get_named_arg_size(name: &str) -> Option<usize> {
         Err(ApiError::MissingArgument) => None,
         Err(e) => runtime::revert(e),
     }
+}
+
+pub(crate) fn get_key_with_user_errors(
+    name: &str,
+    missing: BridgeError,
+    invalid: BridgeError,
+) -> Key {
+    let (name_ptr, name_size, _bytes) = to_ptr(name);
+    let mut key_bytes = vec![0u8; Key::max_serialized_length()];
+    let mut total_bytes: usize = 0;
+    let ret = unsafe {
+        ext_ffi::casper_get_key(
+            name_ptr,
+            name_size,
+            key_bytes.as_mut_ptr(),
+            key_bytes.len(),
+            &mut total_bytes as *mut usize,
+        )
+    };
+    match api_error::result_from(ret) {
+        Ok(_) => {}
+        Err(ApiError::MissingKey) => runtime::revert(missing),
+        Err(e) => runtime::revert(e),
+    }
+    key_bytes.truncate(total_bytes);
+
+    bytesrepr::deserialize(key_bytes).unwrap_or_revert_with(invalid)
+}
+
+pub fn get_uref(name: &str, missing: BridgeError, invalid: BridgeError) -> URef {
+    let key = get_key_with_user_errors(name, missing, invalid);
+    key.into_uref()
+        .unwrap_or_revert_with(BridgeError::UnexpectedKeyVariant)
 }
