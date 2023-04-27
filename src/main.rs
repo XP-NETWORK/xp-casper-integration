@@ -1,9 +1,9 @@
 #![no_std]
 #![no_main]
-#![allow(unused_imports)]
+#![allow(unused_imports, dead_code, unused_variables)]
 
-#[cfg(not(target_arch = "wasm32"))]
-compile_error!("target arch should be wasm32: compile with '--target wasm32-unknown-unknown'");
+// #[cfg(not(target_arch = "wasm32"))]
+// compile_error!("target arch should be wasm32: compile with '--target wasm32-unknown-unknown'");
 
 // This code imports necessary aspects of external crates that we will use in our contract code.
 extern crate alloc;
@@ -11,18 +11,23 @@ extern crate alloc;
 mod entrypoints;
 mod errors;
 mod events;
+mod external;
 mod keys;
 mod structs;
 mod utils;
 
 // Importing Rust types.
 use alloc::{
+    boxed::Box,
+    format,
     string::{String, ToString},
+    vec,
     vec::Vec,
 };
 // Importing aspects of the Casper platform.
 use casper_contract::{
-    contract_api::{runtime, storage},
+    contract_api::{self, account, runtime, storage},
+    ext_ffi,
     unwrap_or_revert::UnwrapOrRevert,
 };
 // Importing specific Casper types.
@@ -30,19 +35,28 @@ use casper_types::{
     api_error::ApiError,
     bytesrepr::serialize,
     contracts::{EntryPoint, EntryPointAccess, EntryPointType, EntryPoints, NamedKeys},
-    CLType, CLValue, URef, U256,
+    system, CLType, CLValue, ContractHash, Key, Parameter, URef, U256, U512,
 };
 
 use ed25519_compact::{PublicKey, Signature};
 use entrypoints::*;
 use errors::BridgeError;
+use external::xp_nft::{burn, mint, transfer};
 use keys::*;
 use sha2::{Digest, Sha512};
-use structs::{PauseData, UnpauseData};
+use structs::{
+    PauseData, TxFee, UnpauseData, UpdateGroupKey, ValidateTransferData, ValidateUnfreezeData,
+};
 
 pub const INITIALIZED: &str = "initialized";
+pub const THIS_CONTRACT: &str = "this_contract";
+pub const INSTALLER: &str = "installer";
 
 pub const ARG_GROUP_KEY: &str = "group_key";
+pub const ARG_PAUSE_DATA: &str = "pause_data";
+pub const ARG_UPDATE_GK: &str = "update_gk";
+pub const ARG_UNPAUSE_DATA: &str = "unpause_data";
+pub const ARG_VALIDATE_TRANSFER_DATA: &str = "validate_transfer_data";
 pub const ARG_SIG_DATA: &str = "sig_data";
 pub const ARG_FEE_PUBLIC_KEY: &str = "fee_public_key";
 
@@ -65,7 +79,7 @@ fn insert_consumed_action(action_id: &U256) {
         BridgeError::InvalidConsumedActionsUref,
     );
 
-    storage::dictionary_put(consumed_actions_uref, &action_id.to_string(), true)
+    storage::dictionary_put::<bool>(consumed_actions_uref, &action_id.to_string(), true)
 }
 
 pub fn get_group_key() -> [u8; 32] {
@@ -130,6 +144,8 @@ pub extern "C" fn init() {
 
     runtime::put_key(KEY_PAUSED, storage::new_uref(false).into());
 
+    runtime::put_key(KEY_PURSE, contract_api::system::create_purse().into());
+
     runtime::put_key(KEY_FEE_PUBLIC_KEY, storage::new_uref(fee_public_key).into());
     runtime::put_key(KEY_GROUP_KEY, storage::new_uref(group_key).into());
     storage::new_dictionary(KEY_WHITELIST_DICT)
@@ -174,7 +190,7 @@ pub extern "C" fn validate_pause() {
 #[no_mangle]
 pub extern "C" fn validate_unpause() {
     let data: UnpauseData = utils::get_named_arg_with_user_errors(
-        ARG_GROUP_KEY,
+        ARG_UNPAUSE_DATA,
         BridgeError::MissingArgumentGroupKey,
         BridgeError::InvalidArgumentGroupKey,
     )
@@ -201,4 +217,270 @@ pub extern "C" fn validate_unpause() {
     );
 
     storage::write(paused_uref, false)
+}
+
+#[no_mangle]
+pub extern "C" fn validate_update_group_key() {
+    let data: UpdateGroupKey = utils::get_named_arg_with_user_errors(
+        ARG_UNPAUSE_DATA,
+        BridgeError::MissingArgumentGroupKey,
+        BridgeError::InvalidArgumentGroupKey,
+    )
+    .unwrap_or_revert();
+
+    let sig_data: Vec<u8> = utils::get_named_arg_with_user_errors(
+        ARG_SIG_DATA,
+        BridgeError::MissingArgumentGroupKey,
+        BridgeError::InvalidArgumentGroupKey,
+    )
+    .unwrap_or_revert();
+
+    require_sig(
+        data.action_id,
+        serialize(data.clone()).unwrap_or_revert(),
+        sig_data,
+        b"UpdateGroupKey",
+    );
+
+    let gk_uref = utils::get_uref(
+        KEY_GROUP_KEY,
+        BridgeError::MissingGroupKeyUref,
+        BridgeError::InvalidGroupKeyUref,
+    );
+
+    storage::write(gk_uref, data.new_key.clone())
+}
+
+#[no_mangle]
+pub extern "C" fn validate_update_fee_pk() {
+    let data: UpdateGroupKey = utils::get_named_arg_with_user_errors(
+        ARG_UPDATE_GK,
+        BridgeError::MissingArgumentGroupKey,
+        BridgeError::InvalidArgumentGroupKey,
+    )
+    .unwrap_or_revert();
+
+    let sig_data: Vec<u8> = utils::get_named_arg_with_user_errors(
+        ARG_SIG_DATA,
+        BridgeError::MissingArgumentGroupKey,
+        BridgeError::InvalidArgumentGroupKey,
+    )
+    .unwrap_or_revert();
+
+    require_sig(
+        data.action_id,
+        serialize(data.clone()).unwrap_or_revert(),
+        sig_data,
+        b"UpdateFeePk",
+    );
+
+    let fee_pk_uref = utils::get_uref(
+        KEY_FEE_PUBLIC_KEY,
+        BridgeError::MissingFeePublicKeyUref,
+        BridgeError::InvalidFeePublicKeyUref,
+    );
+
+    storage::write(fee_pk_uref, data.new_key.clone())
+}
+
+pub fn require_not_paused() {
+    let paused_uref = utils::get_uref(
+        KEY_PAUSED,
+        BridgeError::MissingGroupKeyUref,
+        BridgeError::InvalidGroupKeyUref,
+    );
+    let paused: bool = storage::read(paused_uref)
+        .unwrap_or_revert()
+        .unwrap_or_revert();
+
+    if paused {
+        runtime::revert(BridgeError::ContractStatePaused);
+    }
+}
+
+pub fn require_tx_fees(amount: U512) {
+    let contract_purse = utils::get_uref(
+        KEY_PURSE,
+        BridgeError::MissingConsumedActionsUref,
+        BridgeError::InvalidConsumedActionsUref,
+    );
+    casper_contract::contract_api::system::transfer_from_purse_to_purse(
+        account::get_main_purse(),
+        contract_purse,
+        amount,
+        None,
+    )
+    .unwrap_or_revert_with(BridgeError::FailedToTransferBwPursees)
+}
+
+#[no_mangle]
+pub extern "C" fn validate_transfer_nft() {
+    require_not_paused();
+    let data: ValidateTransferData = utils::get_named_arg_with_user_errors(
+        ARG_VALIDATE_TRANSFER_DATA,
+        BridgeError::MissingArgumentGroupKey,
+        BridgeError::InvalidArgumentGroupKey,
+    )
+    .unwrap_or_revert();
+
+    let sig_data: Vec<u8> = utils::get_named_arg_with_user_errors(
+        ARG_SIG_DATA,
+        BridgeError::MissingArgumentGroupKey,
+        BridgeError::InvalidArgumentGroupKey,
+    )
+    .unwrap_or_revert();
+
+    require_sig(
+        data.action_id,
+        serialize(data.clone()).unwrap_or_revert(),
+        sig_data,
+        b"ValidateTransferNft",
+    );
+
+    mint(data.mint_with, data.receiver, data.metadata.clone());
+}
+
+#[no_mangle]
+pub extern "C" fn validate_unfreeze_nft() {
+    require_not_paused();
+    let data: ValidateUnfreezeData = utils::get_named_arg_with_user_errors(
+        ARG_GROUP_KEY,
+        BridgeError::MissingArgumentGroupKey,
+        BridgeError::InvalidArgumentGroupKey,
+    )
+    .unwrap_or_revert();
+
+    let sig_data: Vec<u8> = utils::get_named_arg_with_user_errors(
+        ARG_SIG_DATA,
+        BridgeError::MissingArgumentGroupKey,
+        BridgeError::InvalidArgumentGroupKey,
+    )
+    .unwrap_or_revert();
+
+    require_sig(
+        data.action_id,
+        serialize(data.clone()).unwrap_or_revert(),
+        sig_data,
+        b"ValidateUnfreezeNft",
+    );
+
+    let this_uref = utils::get_uref(
+        THIS_CONTRACT,
+        BridgeError::MissingThisContractUref,
+        BridgeError::InvalidThisContractUref,
+    );
+
+    let this_contract: ContractHash = storage::read(this_uref)
+        .unwrap_or_revert()
+        .unwrap_or_revert();
+
+    transfer(
+        data.contract,
+        this_contract.into(),
+        data.receiver,
+        data.token_id,
+    );
+}
+
+fn require_enough_fees(tx_fee: TxFee, sig_data: Vec<u8>) {
+    let fee = serialize(tx_fee).unwrap();
+
+    let gk_uref = utils::get_uref(
+        KEY_FEE_PUBLIC_KEY,
+        BridgeError::MissingArgumentFeePublicKey,
+        BridgeError::InvalidArgumentFeePublicKey,
+    );
+
+    let group_key: [u8; 32] = storage::read(gk_uref).unwrap_or_revert().unwrap_or_revert();
+
+    let mut hasher = Sha512::new();
+    hasher.update(fee);
+    let hash = hasher.finalize();
+
+    let sig = Signature::new(sig_data.as_slice().try_into().unwrap());
+    let key = PublicKey::new(group_key);
+    let res = key.verify(hash, &sig);
+    if !res.is_ok() {
+        runtime::revert(BridgeError::IncorrectFeeSig);
+    }
+}
+
+fn generate_entry_points() -> EntryPoints {
+    let mut entrypoints = EntryPoints::new();
+
+    let init = EntryPoint::new(
+        ENTRY_POINT_BRIDGE_INITIALIZE,
+        vec![
+            Parameter::new(ARG_GROUP_KEY, CLType::List(Box::new(CLType::U8))),
+            Parameter::new(ARG_FEE_PUBLIC_KEY, CLType::List(Box::new(CLType::U8))),
+        ],
+        CLType::Unit,
+        EntryPointAccess::Public,
+        EntryPointType::Contract,
+    );
+
+    let validate_pause = EntryPoint::new(
+        ENTRY_POINT_BRIDGE_VALIDATE_PAUSE,
+        vec![
+            Parameter::new(ARG_PAUSE_DATA, CLType::List(Box::new(CLType::U8))),
+            Parameter::new(ARG_SIG_DATA, CLType::List(Box::new(CLType::U8))),
+        ],
+        CLType::Unit,
+        EntryPointAccess::Public,
+        EntryPointType::Contract,
+    );
+    let validate_unpause = EntryPoint::new(
+        ENTRY_POINT_BRIDGE_VALIDATE_UNPAUSE,
+        vec![Parameter::new(
+            ARG_UNPAUSE_DATA,
+            CLType::List(Box::new(CLType::U8)),
+        )],
+        CLType::Unit,
+        EntryPointAccess::Public,
+        EntryPointType::Contract,
+    );
+
+    let validate_transfer_nft = EntryPoint::new(
+        ENTRY_POINT_BRIDGE_VALIDATE_TRANSFER_NFT,
+        vec![
+            Parameter::new(
+                ARG_VALIDATE_TRANSFER_DATA,
+                CLType::List(Box::new(CLType::U8)),
+            ),
+            Parameter::new(ARG_SIG_DATA, CLType::List(Box::new(CLType::U8))),
+        ],
+        CLType::Unit,
+        EntryPointAccess::Public,
+        EntryPointType::Contract,
+    );
+
+    entrypoints.add_entry_point(init);
+    entrypoints.add_entry_point(validate_pause);
+    entrypoints.add_entry_point(validate_unpause);
+    entrypoints
+}
+
+fn install_contract() {
+    let entry_points = generate_entry_points();
+    let named_keys = {
+        let mut named_keys = NamedKeys::new();
+        named_keys.insert(INSTALLER.to_string(), runtime::get_caller().into());
+
+        named_keys
+    };
+
+    let hash_key_name = format!("bridge");
+
+    let (contract_hash, contract_version) = storage::new_contract(
+        entry_points,
+        Some(named_keys),
+        Some(hash_key_name.clone()),
+        Some(format!("bridge")),
+    );
+    runtime::put_key(THIS_CONTRACT, storage::new_uref(contract_hash).into());
+}
+
+#[no_mangle]
+pub extern "C" fn call() {
+    install_contract();
 }

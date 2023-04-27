@@ -19,6 +19,15 @@ pub enum BridgeError {
     RetryingConsumedActions = 10,
     UnauthorizedAction = 11,
 
+    ContractStatePaused = 12,
+    FailedToTransferBwPursees = 13,
+
+    IncorrectFeeSig = 14,
+    MissingThisContractUref = 15,
+    InvalidThisContractUref = 16,
+    MissingFeePublicKeyUref = 17,
+    InvalidFeePublicKeyUref = 18,
+
     UnexpectedKeyVariant = 67,
     FailedToCreateDictionary = 68,
     FailedToGetArgBytes = 69, // For Now

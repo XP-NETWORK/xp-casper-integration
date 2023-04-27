@@ -1,12 +1,12 @@
-pub const ENTRY_POINT_BRIDGE_INITIALIZE: &str = "bridge_initialize";
+pub const ENTRY_POINT_BRIDGE_INITIALIZE: &str = "init";
 
 pub const ENTRY_POINT_BRIDGE_FREEZE: &str = "bridge_freeze_nft";
 pub const ENTRY_POINT_BRIDGE_FREEZE_BATCH: &str = "bridge_freeze_nft_batch";
 pub const ENTRY_POINT_BRIDGE_WITHDRAW: &str = "bridge_withdraw_nft";
 const ENTRY_POINT_BRIDGE_WITHDRAW_BATCH: &str = "bridge_withdraw_nft_batch";
 
-pub const ENTRY_POINT_BRIDGE_VALIDATE_PAUSE: &str = "bridge_validate_pause";
-pub const ENTRY_POINT_BRIDGE_VALIDATE_UNPAUSE: &str = "bridge_validate_unpause";
+pub const ENTRY_POINT_BRIDGE_VALIDATE_PAUSE: &str = "validate_pause";
+pub const ENTRY_POINT_BRIDGE_VALIDATE_UNPAUSE: &str = "validate_unpause";
 
 pub const ENTRY_POINT_BRIDGE_VALIDATE_TRANSFER_NFT: &str = "bridge_validate_transfer_nft";
 pub const ENTRY_POINT_BRIDGE_VALIDATE_TRANSFER_NFT_BATCH: &str =
