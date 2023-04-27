@@ -41,11 +41,13 @@ use casper_types::{
 use ed25519_compact::{PublicKey, Signature};
 use entrypoints::*;
 use errors::BridgeError;
+use events::{TransferNftEvent, UnfreezeNftEvent};
 use external::xp_nft::{burn, mint, transfer};
 use keys::*;
 use sha2::{Digest, Sha512};
 use structs::{
-    PauseData, TxFee, UnpauseData, UpdateGroupKey, ValidateTransferData, ValidateUnfreezeData,
+    FreezeNFT, PauseData, TxFee, UnpauseData, UpdateGroupKey, ValidateTransferData,
+    ValidateUnfreezeData, WithdrawNFT,
 };
 
 pub const INITIALIZED: &str = "initialized";
@@ -55,6 +57,8 @@ pub const INSTALLER: &str = "installer";
 pub const ARG_GROUP_KEY: &str = "group_key";
 pub const ARG_PAUSE_DATA: &str = "pause_data";
 pub const ARG_UPDATE_GK: &str = "update_gk";
+pub const ARG_FREEZE_DATA: &str = "freeze_data";
+pub const ARG_WITHDRAW_DATA: &str = "withdraw_data";
 pub const ARG_UNPAUSE_DATA: &str = "unpause_data";
 pub const ARG_VALIDATE_TRANSFER_DATA: &str = "validate_transfer_data";
 pub const ARG_SIG_DATA: &str = "sig_data";
@@ -380,6 +384,96 @@ pub extern "C" fn validate_unfreeze_nft() {
         data.receiver,
         data.token_id,
     );
+}
+
+#[no_mangle]
+pub extern "C" fn freeze_nft() {
+    require_not_paused();
+
+    let data: FreezeNFT = utils::get_named_arg_with_user_errors(
+        ARG_FREEZE_DATA,
+        BridgeError::MissingArgumentGroupKey,
+        BridgeError::InvalidArgumentGroupKey,
+    )
+    .unwrap_or_revert();
+
+    require_enough_fees(
+        TxFee {
+            from: 38,
+            to: data.chain_nonce,
+            receiver: data.to.clone(),
+            value: data.amt,
+        },
+        data.sig_data,
+    );
+
+    let this_uref = utils::get_uref(
+        THIS_CONTRACT,
+        BridgeError::MissingThisContractUref,
+        BridgeError::InvalidThisContractUref,
+    );
+
+    let this_contract: ContractHash = storage::read(this_uref)
+        .unwrap_or_revert()
+        .unwrap_or_revert();
+
+    transfer(
+        data.contract,
+        Key::Account(runtime::get_caller()),
+        this_contract.into(),
+        data.token_id.clone(),
+    );
+    let ev = TransferNftEvent {
+        amt: data.amt,
+        chain_nonce: data.chain_nonce,
+        to: data.to,
+        contract: data.contract.to_string(),
+        token_id: data.token_id,
+        mint_with: data.mint_with,
+    };
+    casper_event_standard::emit(ev);
+}
+
+#[no_mangle]
+pub extern "C" fn withdraw_nft() {
+    require_not_paused();
+
+    let data: WithdrawNFT = utils::get_named_arg_with_user_errors(
+        ARG_FREEZE_DATA,
+        BridgeError::MissingArgumentGroupKey,
+        BridgeError::InvalidArgumentGroupKey,
+    )
+    .unwrap_or_revert();
+
+    require_enough_fees(
+        TxFee {
+            from: 38,
+            to: data.chain_nonce,
+            receiver: data.to.clone(),
+            value: data.amt,
+        },
+        data.sig_data,
+    );
+
+    let this_uref = utils::get_uref(
+        THIS_CONTRACT,
+        BridgeError::MissingThisContractUref,
+        BridgeError::InvalidThisContractUref,
+    );
+
+    let this_contract: ContractHash = storage::read(this_uref)
+        .unwrap_or_revert()
+        .unwrap_or_revert();
+
+    burn(data.contract, data.token_id.clone());
+    let ev = UnfreezeNftEvent {
+        amt: data.amt,
+        chain_nonce: data.chain_nonce,
+        to: data.to,
+        contract: data.contract.to_string(),
+        token_id: data.token_id,
+    };
+    casper_event_standard::emit(ev);
 }
 
 fn require_enough_fees(tx_fee: TxFee, sig_data: Vec<u8>) {
