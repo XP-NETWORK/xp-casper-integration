@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 pub mod xp_nft {
     use alloc::string::String;
     use casper_contract::contract_api::runtime;
@@ -22,18 +23,17 @@ pub mod xp_nft {
     const ENTRY_POINT_METADATA: &str = "metadata";
 
     pub fn mint(nft_contract: ContractHash, token_owner: Key, token_metadata: String) {
-        let (receipt_name, owned_tokens_dictionary_key, _token_id_string) =
-            runtime::call_contract::<(String, Key, String)>(
-                nft_contract,
-                ENTRY_POINT_MINT,
-                runtime_args! {
-                    ARG_TOKEN_OWNER => token_owner,
-                    ARG_TOKEN_META_DATA => token_metadata,
-                },
-            );
+        let (_, _, _token_id_string) = runtime::call_contract::<(String, Key, String)>(
+            nft_contract,
+            ENTRY_POINT_MINT,
+            runtime_args! {
+                ARG_TOKEN_OWNER => token_owner,
+                ARG_TOKEN_META_DATA => token_metadata,
+            },
+        );
     }
 
-    pub fn metadata(nft_contract: ContractHash, tid: TokenIdentifier) -> String {
+    pub fn _metadata(nft_contract: ContractHash, tid: TokenIdentifier) -> String {
         let (meta,) = match tid {
             TokenIdentifier::Index(token_idx) => runtime::call_contract::<(String,)>(
                 nft_contract,
@@ -78,7 +78,7 @@ pub mod xp_nft {
         target_key: Key,
         tid: TokenIdentifier,
     ) {
-        let (receipt_name, owned_tokens_dictionary_key) = match tid {
+        let (_, _) = match tid {
             TokenIdentifier::Index(idx) => runtime::call_contract::<(String, Key)>(
                 nft_contract,
                 ENTRY_POINT_TRANSFER,

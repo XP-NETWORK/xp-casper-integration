@@ -1,8 +1,7 @@
 use alloc::{string::String, vec::Vec};
 use casper_types::{
-    account::AccountHash,
     bytesrepr::{self, FromBytes, ToBytes},
-    ContractHash, Key, U128, U256, U512,
+    ContractHash, Key, U256, U512,
 };
 
 use crate::external::xp_nft::TokenIdentifier;
@@ -237,7 +236,7 @@ pub struct UpdateGroupKey {
 impl FromBytes for UpdateGroupKey {
     fn from_bytes(bytes: &[u8]) -> Result<(Self, &[u8]), bytesrepr::Error> {
         let (action_id, remainder) = U256::from_bytes(bytes)?;
-        let (new_key, remainder) = Vec::from_bytes(bytes)?;
+        let (new_key, remainder) = Vec::from_bytes(remainder)?;
         Ok((Self { action_id, new_key }, remainder))
     }
 }

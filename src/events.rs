@@ -1,8 +1,8 @@
-use alloc::string::{String, ToString};
+use alloc::string::String;
 use casper_event_standard::Event;
 use casper_types::{
     bytesrepr::{FromBytes, ToBytes},
-    CLType, CLTyped, U256, U512,
+    CLType, CLTyped, U512,
 };
 
 use crate::external::xp_nft::TokenIdentifier;

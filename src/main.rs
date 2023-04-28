@@ -1,6 +1,5 @@
 #![no_std]
 #![no_main]
-#![allow(unused_imports, dead_code, unused_variables)]
 
 // #[cfg(not(target_arch = "wasm32"))]
 // compile_error!("target arch should be wasm32: compile with '--target wasm32-unknown-unknown'");
@@ -17,25 +16,17 @@ mod structs;
 mod utils;
 
 // Importing Rust types.
-use alloc::{
-    boxed::Box,
-    format,
-    string::{String, ToString},
-    vec,
-    vec::Vec,
-};
+use alloc::{boxed::Box, format, string::ToString, vec, vec::Vec};
 // Importing aspects of the Casper platform.
 use casper_contract::{
-    contract_api::{self, account, runtime, storage},
-    ext_ffi,
+    contract_api::{self, account, runtime, storage, system::transfer_to_account},
     unwrap_or_revert::UnwrapOrRevert,
 };
 // Importing specific Casper types.
 use casper_types::{
-    api_error::ApiError,
     bytesrepr::serialize,
     contracts::{EntryPoint, EntryPointAccess, EntryPointType, EntryPoints, NamedKeys},
-    system, CLType, CLValue, ContractHash, Key, Parameter, URef, U256, U512,
+    CLType, ContractHash, Key, Parameter, U256, U512,
 };
 
 use ed25519_compact::{PublicKey, Signature};
@@ -407,6 +398,8 @@ pub extern "C" fn freeze_nft() {
         data.sig_data,
     );
 
+    transfer_tx_fees(data.amt.clone());
+
     let this_uref = utils::get_uref(
         THIS_CONTRACT,
         BridgeError::MissingThisContractUref,
@@ -455,15 +448,7 @@ pub extern "C" fn withdraw_nft() {
         data.sig_data,
     );
 
-    let this_uref = utils::get_uref(
-        THIS_CONTRACT,
-        BridgeError::MissingThisContractUref,
-        BridgeError::InvalidThisContractUref,
-    );
-
-    let this_contract: ContractHash = storage::read(this_uref)
-        .unwrap_or_revert()
-        .unwrap_or_revert();
+    transfer_tx_fees(data.amt.clone());
 
     burn(data.contract, data.token_id.clone());
     let ev = UnfreezeNftEvent {
@@ -497,6 +482,19 @@ fn require_enough_fees(tx_fee: TxFee, sig_data: Vec<u8>) {
     if !res.is_ok() {
         runtime::revert(BridgeError::IncorrectFeeSig);
     }
+}
+
+pub fn transfer_tx_fees(amount: U512) {
+    let this_purse_uref = utils::get_uref(
+        KEY_PURSE,
+        BridgeError::MissingThisPurseUref,
+        BridgeError::InvalidThisPurseUref,
+    );
+
+    let purse = storage::read(this_purse_uref)
+        .unwrap_or_revert()
+        .unwrap_or_revert();
+    transfer_to_account(purse, amount, None).unwrap_or_revert();
 }
 
 fn generate_entry_points() -> EntryPoints {
@@ -551,6 +549,7 @@ fn generate_entry_points() -> EntryPoints {
     entrypoints.add_entry_point(init);
     entrypoints.add_entry_point(validate_pause);
     entrypoints.add_entry_point(validate_unpause);
+    entrypoints.add_entry_point(validate_transfer_nft);
     entrypoints
 }
 
@@ -565,7 +564,7 @@ fn install_contract() {
 
     let hash_key_name = format!("bridge");
 
-    let (contract_hash, contract_version) = storage::new_contract(
+    let (contract_hash, _) = storage::new_locked_contract(
         entry_points,
         Some(named_keys),
         Some(hash_key_name.clone()),

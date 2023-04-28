@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 pub const ENTRY_POINT_BRIDGE_INITIALIZE: &str = "init";
 
 pub const ENTRY_POINT_BRIDGE_FREEZE: &str = "bridge_freeze_nft";

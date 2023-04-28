@@ -3,34 +3,36 @@ use casper_types::ApiError;
 #[repr(u16)]
 #[derive(Clone, Copy)]
 pub enum BridgeError {
-    AlreadyInitialized = 1,
+    AlreadyInitialized,
 
     // Init Errors
-    MissingArgumentGroupKey = 2,
-    InvalidArgumentGroupKey = 3,
-    MissingArgumentFeePublicKey = 4,
-    InvalidArgumentFeePublicKey = 5,
+    MissingArgumentGroupKey,
+    InvalidArgumentGroupKey,
+    MissingArgumentFeePublicKey,
+    InvalidArgumentFeePublicKey,
 
-    MissingConsumedActionsUref = 6,
-    InvalidConsumedActionsUref = 7,
-    MissingGroupKeyUref = 8,
-    InvalidGroupKeyUref = 9,
+    MissingConsumedActionsUref,
+    InvalidConsumedActionsUref,
+    MissingGroupKeyUref,
+    InvalidGroupKeyUref,
 
-    RetryingConsumedActions = 10,
-    UnauthorizedAction = 11,
+    RetryingConsumedActions,
+    UnauthorizedAction,
 
-    ContractStatePaused = 12,
-    FailedToTransferBwPursees = 13,
+    ContractStatePaused,
+    FailedToTransferBwPursees,
 
-    IncorrectFeeSig = 14,
-    MissingThisContractUref = 15,
-    InvalidThisContractUref = 16,
-    MissingFeePublicKeyUref = 17,
-    InvalidFeePublicKeyUref = 18,
+    IncorrectFeeSig,
+    MissingThisContractUref,
+    InvalidThisContractUref,
+    MissingFeePublicKeyUref,
+    InvalidFeePublicKeyUref,
+    MissingThisPurseUref,
+    InvalidThisPurseUref,
 
-    UnexpectedKeyVariant = 67,
-    FailedToCreateDictionary = 68,
-    FailedToGetArgBytes = 69, // For Now
+    UnexpectedKeyVariant,
+    FailedToCreateDictionary,
+    FailedToGetArgBytes,
 }
 
 impl From<BridgeError> for ApiError {
