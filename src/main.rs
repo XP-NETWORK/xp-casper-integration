@@ -84,7 +84,7 @@ pub fn get_group_key() -> [u8; 32] {
         BridgeError::InvalidGroupKeyUref,
     );
 
-    let group_key: [u8; 32] = storage::read(gk_uref).unwrap_or_revert().unwrap_or_revert();
+    let group_key: [u8; 32] = storage::read_or_revert(gk_uref);
     group_key
 }
 
@@ -284,9 +284,7 @@ pub fn require_not_paused() {
         BridgeError::MissingGroupKeyUref,
         BridgeError::InvalidGroupKeyUref,
     );
-    let paused: bool = storage::read(paused_uref)
-        .unwrap_or_revert()
-        .unwrap_or_revert();
+    let paused: bool = storage::read_or_revert(paused_uref);
 
     if paused {
         runtime::revert(BridgeError::ContractStatePaused);
@@ -365,10 +363,7 @@ pub extern "C" fn validate_unfreeze_nft() {
         BridgeError::InvalidThisContractUref,
     );
 
-    let this_contract: ContractHash = storage::read(this_uref)
-        .unwrap_or_revert()
-        .unwrap_or_revert();
-
+    let this_contract: ContractHash = storage::read_or_revert(this_uref);
     transfer(
         data.contract,
         this_contract.into(),
@@ -406,9 +401,7 @@ pub extern "C" fn freeze_nft() {
         BridgeError::InvalidThisContractUref,
     );
 
-    let this_contract: ContractHash = storage::read(this_uref)
-        .unwrap_or_revert()
-        .unwrap_or_revert();
+    let this_contract: ContractHash = storage::read_or_revert(this_uref);
 
     transfer(
         data.contract,
@@ -470,7 +463,7 @@ fn require_enough_fees(tx_fee: TxFee, sig_data: Vec<u8>) {
         BridgeError::InvalidArgumentFeePublicKey,
     );
 
-    let group_key: [u8; 32] = storage::read(gk_uref).unwrap_or_revert().unwrap_or_revert();
+    let group_key: [u8; 32] = storage::read_or_revert(gk_uref);
 
     let mut hasher = Sha512::new();
     hasher.update(fee);
@@ -491,9 +484,7 @@ pub fn transfer_tx_fees(amount: U512) {
         BridgeError::InvalidThisPurseUref,
     );
 
-    let purse = storage::read(this_purse_uref)
-        .unwrap_or_revert()
-        .unwrap_or_revert();
+    let purse = storage::read_or_revert(this_purse_uref);
     transfer_to_account(purse, amount, None).unwrap_or_revert();
 }
 
