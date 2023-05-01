@@ -19,14 +19,19 @@ mod utils;
 use alloc::{boxed::Box, format, string::ToString, vec, vec::Vec};
 // Importing aspects of the Casper platform.
 use casper_contract::{
-    contract_api::{self, account, runtime, storage, system::transfer_to_account},
+    contract_api::{
+        self, account,
+        runtime::{self},
+        storage,
+        system::transfer_from_purse_to_purse,
+    },
     unwrap_or_revert::UnwrapOrRevert,
 };
 // Importing specific Casper types.
 use casper_types::{
     bytesrepr::serialize,
     contracts::{EntryPoint, EntryPointAccess, EntryPointType, EntryPoints, NamedKeys},
-    CLType, ContractHash, Key, Parameter, U256, U512,
+    CLType, ContractHash, Key, Parameter, URef, U256, U512,
 };
 
 use ed25519_compact::{PublicKey, Signature};
@@ -38,7 +43,7 @@ use keys::*;
 use sha2::{Digest, Sha512};
 use structs::{
     FreezeNFT, PauseData, TxFee, UnpauseData, UpdateGroupKey, ValidateTransferData,
-    ValidateUnfreezeData, WithdrawNFT,
+    ValidateUnfreezeData, WithdrawFeeData, WithdrawNFT,
 };
 
 pub const INITIALIZED: &str = "initialized";
@@ -53,6 +58,7 @@ pub const ARG_WITHDRAW_DATA: &str = "withdraw_data";
 pub const ARG_UNPAUSE_DATA: &str = "unpause_data";
 pub const ARG_VALIDATE_TRANSFER_DATA: &str = "validate_transfer_data";
 pub const ARG_SIG_DATA: &str = "sig_data";
+pub const KEY_PURSE: &str = "bridge_purse";
 pub const ARG_FEE_PUBLIC_KEY: &str = "fee_public_key";
 
 fn check_consumed_action(action_id: &U256) -> bool {
@@ -292,11 +298,7 @@ pub fn require_not_paused() {
 }
 
 pub fn require_tx_fees(amount: U512) {
-    let contract_purse = utils::get_uref(
-        KEY_PURSE,
-        BridgeError::MissingConsumedActionsUref,
-        BridgeError::InvalidConsumedActionsUref,
-    );
+    let contract_purse = contract_api::account::get_main_purse();
     casper_contract::contract_api::system::transfer_from_purse_to_purse(
         account::get_main_purse(),
         contract_purse,
@@ -370,6 +372,42 @@ pub extern "C" fn validate_unfreeze_nft() {
         data.receiver,
         data.token_id,
     );
+}
+
+#[no_mangle]
+pub extern "C" fn validate_withdraw_fees() {
+    require_not_paused();
+    let data: WithdrawFeeData = utils::get_named_arg_with_user_errors(
+        ARG_WITHDRAW_DATA,
+        BridgeError::MissingArgumentGroupKey,
+        BridgeError::InvalidArgumentGroupKey,
+    )
+    .unwrap_or_revert();
+
+    let sig_data: Vec<u8> = utils::get_named_arg_with_user_errors(
+        ARG_SIG_DATA,
+        BridgeError::MissingArgumentGroupKey,
+        BridgeError::InvalidArgumentGroupKey,
+    )
+    .unwrap_or_revert();
+
+    require_sig(
+        data.action_id,
+        serialize(data.clone()).unwrap_or_revert(),
+        sig_data,
+        b"ValidateWithdrawFees",
+    );
+
+    let this_contract_purse_uref = utils::get_uref(
+        KEY_PURSE,
+        BridgeError::MissingThisPurseUref,
+        BridgeError::InvalidThisPurseUref,
+    );
+
+    let purse: URef = storage::read_or_revert(this_contract_purse_uref);
+
+    let bal = contract_api::system::get_purse_balance(purse).unwrap_or(U512::from(0));
+    transfer_from_purse_to_purse(purse, data.receiver, bal, None).unwrap_or_revert();
 }
 
 #[no_mangle]
@@ -478,14 +516,16 @@ fn require_enough_fees(tx_fee: TxFee, sig_data: Vec<u8>) {
 }
 
 pub fn transfer_tx_fees(amount: U512) {
-    let this_purse_uref = utils::get_uref(
+    let this_uref = utils::get_uref(
         KEY_PURSE,
-        BridgeError::MissingThisPurseUref,
-        BridgeError::InvalidThisPurseUref,
+        BridgeError::MissingThisContractUref,
+        BridgeError::InvalidThisContractUref,
     );
 
-    let purse = storage::read_or_revert(this_purse_uref);
-    transfer_to_account(purse, amount, None).unwrap_or_revert();
+    let this_contract: URef = storage::read_or_revert(this_uref);
+
+    transfer_from_purse_to_purse(account::get_main_purse(), this_contract, amount, None)
+        .unwrap_or_revert();
 }
 
 fn generate_entry_points() -> EntryPoints {
@@ -555,7 +595,7 @@ fn install_contract() {
 
     let hash_key_name = format!("bridge");
 
-    let (contract_hash, _) = storage::new_locked_contract(
+    let (contract_hash, _) = storage::new_contract(
         entry_points,
         Some(named_keys),
         Some(hash_key_name.clone()),

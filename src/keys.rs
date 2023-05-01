@@ -5,5 +5,3 @@ pub const KEY_WHITELIST_DICT: &str = "whitelist_dict";
 pub const KEY_CONSUMED_ACTIONS_DICT: &str = "consumed_actions_dict";
 
 pub const KEY_PAUSED: &str = "bridge_paused";
-
-pub const KEY_PURSE: &str = "bridge_purse";

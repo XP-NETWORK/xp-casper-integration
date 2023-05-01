@@ -1,7 +1,7 @@
 use alloc::{string::String, vec::Vec};
 use casper_types::{
     bytesrepr::{self, FromBytes, ToBytes},
-    ContractHash, Key, U256, U512,
+    ContractHash, Key, URef, U256, U512,
 };
 
 use crate::external::xp_nft::TokenIdentifier;
@@ -18,6 +18,38 @@ impl FromBytes for PauseData {
 }
 
 impl ToBytes for PauseData {
+    fn to_bytes(&self) -> Result<Vec<u8>, bytesrepr::Error> {
+        let mut result = bytesrepr::allocate_buffer(self)?;
+        result.extend(self.action_id.to_bytes()?);
+        Ok(result)
+    }
+
+    fn serialized_length(&self) -> usize {
+        self.action_id.serialized_length()
+    }
+}
+
+#[derive(Clone)]
+pub struct WithdrawFeeData {
+    pub action_id: U256,
+    pub receiver: URef,
+}
+
+impl FromBytes for WithdrawFeeData {
+    fn from_bytes(bytes: &[u8]) -> Result<(Self, &[u8]), bytesrepr::Error> {
+        let (action_id, remainder) = U256::from_bytes(bytes)?;
+        let (receiver, remainder) = URef::from_bytes(remainder)?;
+        Ok((
+            Self {
+                action_id,
+                receiver,
+            },
+            remainder,
+        ))
+    }
+}
+
+impl ToBytes for WithdrawFeeData {
     fn to_bytes(&self) -> Result<Vec<u8>, bytesrepr::Error> {
         let mut result = bytesrepr::allocate_buffer(self)?;
         result.extend(self.action_id.to_bytes()?);
