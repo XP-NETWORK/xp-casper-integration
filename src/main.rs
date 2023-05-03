@@ -42,8 +42,8 @@ use external::xp_nft::{burn, mint, transfer};
 use keys::*;
 use sha2::{Digest, Sha512};
 use structs::{
-    FreezeNFT, PauseData, TxFee, UnpauseData, UpdateGroupKey, ValidateTransferData,
-    ValidateUnfreezeData, WithdrawFeeData, WithdrawNFT,
+    FreezeNFT, PauseData, TxFee, UnpauseData, UpdateGroupKey, ValidateBlacklist,
+    ValidateTransferData, ValidateUnfreezeData, ValidateWhitelist, WithdrawFeeData, WithdrawNFT,
 };
 
 pub const INITIALIZED: &str = "initialized";
@@ -55,11 +55,14 @@ pub const ARG_PAUSE_DATA: &str = "pause_data";
 pub const ARG_UPDATE_GK: &str = "update_gk";
 pub const ARG_FREEZE_DATA: &str = "freeze_data";
 pub const ARG_WITHDRAW_DATA: &str = "withdraw_data";
+pub const ARG_WHITELIST_DATA: &str = "whitelist_data";
+pub const ARG_BLACKLIST_DATA: &str = "blacklist_data";
 pub const ARG_UNPAUSE_DATA: &str = "unpause_data";
 pub const ARG_VALIDATE_TRANSFER_DATA: &str = "validate_transfer_data";
 pub const ARG_SIG_DATA: &str = "sig_data";
 pub const KEY_PURSE: &str = "bridge_purse";
 pub const ARG_FEE_PUBLIC_KEY: &str = "fee_public_key";
+pub const ARG_WHITELIST: &str = "whitelist";
 
 fn check_consumed_action(action_id: &U256) -> bool {
     let consumed_actions_uref = utils::get_uref(
@@ -141,6 +144,13 @@ pub extern "C" fn init() {
     )
     .unwrap_or_revert();
 
+    let whitelist_contracts: Vec<ContractHash> = utils::get_named_arg_with_user_errors(
+        ARG_WHITELIST,
+        BridgeError::MissingArgumentFeePublicKey,
+        BridgeError::MissingArgumentFeePublicKey,
+    )
+    .unwrap_or_revert();
+
     runtime::put_key(INITIALIZED, storage::new_uref(true).into());
 
     runtime::put_key(KEY_PAUSED, storage::new_uref(false).into());
@@ -149,11 +159,14 @@ pub extern "C" fn init() {
 
     runtime::put_key(KEY_FEE_PUBLIC_KEY, storage::new_uref(fee_public_key).into());
     runtime::put_key(KEY_GROUP_KEY, storage::new_uref(group_key).into());
-    storage::new_dictionary(KEY_WHITELIST_DICT)
+    let whitelist = storage::new_dictionary(KEY_WHITELIST_DICT)
         .unwrap_or_revert_with(BridgeError::FailedToCreateDictionary);
 
     storage::new_dictionary(KEY_CONSUMED_ACTIONS_DICT)
         .unwrap_or_revert_with(BridgeError::FailedToCreateDictionary);
+    whitelist_contracts
+        .iter()
+        .for_each(|c| storage::dictionary_put(whitelist, &c.to_string(), true));
 }
 
 #[no_mangle]
@@ -359,6 +372,8 @@ pub extern "C" fn validate_unfreeze_nft() {
         b"ValidateUnfreezeNft",
     );
 
+    require_whitelist(data.contract);
+
     let this_uref = utils::get_uref(
         THIS_CONTRACT,
         BridgeError::MissingThisContractUref,
@@ -410,6 +425,84 @@ pub extern "C" fn validate_withdraw_fees() {
     transfer_from_purse_to_purse(purse, data.receiver, bal, None).unwrap_or_revert();
 }
 
+fn require_whitelist(contract: ContractHash) {
+    let whitelist_uref = utils::get_uref(
+        KEY_WHITELIST_DICT,
+        BridgeError::MissingConsumedActionsUref,
+        BridgeError::InvalidConsumedActionsUref,
+    );
+
+    let value = storage::dictionary_get::<bool>(whitelist_uref, &contract.to_string())
+        .unwrap_or_revert()
+        .unwrap_or(false);
+
+    if !value {
+        runtime::revert(BridgeError::NotWhitelistedContract)
+    }
+}
+
+pub extern "C" fn validate_whitelist() {
+    let data: ValidateWhitelist = utils::get_named_arg_with_user_errors(
+        ARG_WHITELIST_DATA,
+        BridgeError::MissingArgumentGroupKey,
+        BridgeError::InvalidArgumentGroupKey,
+    )
+    .unwrap_or_revert();
+
+    let sig_data: Vec<u8> = utils::get_named_arg_with_user_errors(
+        ARG_SIG_DATA,
+        BridgeError::MissingArgumentGroupKey,
+        BridgeError::InvalidArgumentGroupKey,
+    )
+    .unwrap_or_revert();
+
+    require_sig(
+        data.action_id,
+        serialize(data.clone()).unwrap_or_revert(),
+        sig_data,
+        b"WhitelistNftAction",
+    );
+
+    let whitelist_uref = utils::get_uref(
+        KEY_WHITELIST_DICT,
+        BridgeError::MissingConsumedActionsUref,
+        BridgeError::InvalidConsumedActionsUref,
+    );
+
+    storage::dictionary_put(whitelist_uref, &data.contract.to_string(), true)
+}
+
+pub extern "C" fn validate_blacklist() {
+    let data: ValidateBlacklist = utils::get_named_arg_with_user_errors(
+        ARG_BLACKLIST_DATA,
+        BridgeError::MissingArgumentGroupKey,
+        BridgeError::InvalidArgumentGroupKey,
+    )
+    .unwrap_or_revert();
+
+    let sig_data: Vec<u8> = utils::get_named_arg_with_user_errors(
+        ARG_SIG_DATA,
+        BridgeError::MissingArgumentGroupKey,
+        BridgeError::InvalidArgumentGroupKey,
+    )
+    .unwrap_or_revert();
+
+    require_sig(
+        data.action_id,
+        serialize(data.clone()).unwrap_or_revert(),
+        sig_data,
+        b"BlacklistNftAction",
+    );
+
+    let whitelist_uref = utils::get_uref(
+        KEY_WHITELIST_DICT,
+        BridgeError::MissingConsumedActionsUref,
+        BridgeError::InvalidConsumedActionsUref,
+    );
+
+    storage::dictionary_put(whitelist_uref, &data.contract.to_string(), false)
+}
+
 #[no_mangle]
 pub extern "C" fn freeze_nft() {
     require_not_paused();
@@ -430,6 +523,8 @@ pub extern "C" fn freeze_nft() {
         },
         data.sig_data,
     );
+
+    require_whitelist(data.contract);
 
     transfer_tx_fees(data.amt.clone());
 

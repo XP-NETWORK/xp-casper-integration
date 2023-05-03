@@ -29,7 +29,7 @@ pub enum BridgeError {
     InvalidFeePublicKeyUref,
     MissingThisPurseUref,
     InvalidThisPurseUref,
-
+    NotWhitelistedContract,
     UnexpectedKeyVariant,
     FailedToCreateDictionary,
     FailedToGetArgBytes,

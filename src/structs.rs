@@ -61,6 +61,72 @@ impl ToBytes for WithdrawFeeData {
     }
 }
 
+#[derive(Clone)]
+pub struct ValidateWhitelist {
+    pub action_id: U256,
+    pub contract: ContractHash,
+}
+
+impl FromBytes for ValidateWhitelist {
+    fn from_bytes(bytes: &[u8]) -> Result<(Self, &[u8]), bytesrepr::Error> {
+        let (action_id, remainder) = U256::from_bytes(bytes)?;
+        let (contract, remainder) = ContractHash::from_bytes(remainder)?;
+        Ok((
+            Self {
+                action_id,
+                contract,
+            },
+            remainder,
+        ))
+    }
+}
+
+impl ToBytes for ValidateWhitelist {
+    fn to_bytes(&self) -> Result<Vec<u8>, bytesrepr::Error> {
+        let mut result = bytesrepr::allocate_buffer(self)?;
+        result.extend(self.action_id.to_bytes()?);
+        result.extend(self.contract.to_bytes()?);
+        Ok(result)
+    }
+
+    fn serialized_length(&self) -> usize {
+        self.action_id.serialized_length() + self.contract.serialized_length()
+    }
+}
+
+#[derive(Clone)]
+pub struct ValidateBlacklist {
+    pub action_id: U256,
+    pub contract: ContractHash,
+}
+
+impl FromBytes for ValidateBlacklist {
+    fn from_bytes(bytes: &[u8]) -> Result<(Self, &[u8]), bytesrepr::Error> {
+        let (action_id, remainder) = U256::from_bytes(bytes)?;
+        let (contract, remainder) = ContractHash::from_bytes(remainder)?;
+        Ok((
+            Self {
+                action_id,
+                contract,
+            },
+            remainder,
+        ))
+    }
+}
+
+impl ToBytes for ValidateBlacklist {
+    fn to_bytes(&self) -> Result<Vec<u8>, bytesrepr::Error> {
+        let mut result = bytesrepr::allocate_buffer(self)?;
+        result.extend(self.action_id.to_bytes()?);
+        result.extend(self.contract.to_bytes()?);
+        Ok(result)
+    }
+
+    fn serialized_length(&self) -> usize {
+        self.action_id.serialized_length() + self.contract.serialized_length()
+    }
+}
+
 pub struct UnpauseData {
     pub action_id: U256,
 }
