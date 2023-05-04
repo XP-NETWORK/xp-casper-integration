@@ -53,11 +53,12 @@ impl ToBytes for WithdrawFeeData {
     fn to_bytes(&self) -> Result<Vec<u8>, bytesrepr::Error> {
         let mut result = bytesrepr::allocate_buffer(self)?;
         result.extend(self.action_id.to_bytes()?);
+        result.extend(self.receiver.to_bytes()?);
         Ok(result)
     }
 
     fn serialized_length(&self) -> usize {
-        self.action_id.serialized_length()
+        self.action_id.serialized_length() + self.action_id.serialized_length()
     }
 }
 
@@ -178,11 +179,19 @@ impl FromBytes for ValidateTransferData {
 
 impl ToBytes for ValidateTransferData {
     fn to_bytes(&self) -> Result<Vec<u8>, bytesrepr::Error> {
-        todo!()
+        let mut result = bytesrepr::allocate_buffer(self)?;
+        result.extend(self.action_id.to_bytes()?);
+        result.extend(self.metadata.to_bytes()?);
+        result.extend(self.mint_with.to_bytes()?);
+        result.extend(self.receiver.to_bytes()?);
+        Ok(result)
     }
 
     fn serialized_length(&self) -> usize {
-        todo!()
+        self.action_id.serialized_length()
+            + self.metadata.serialized_length()
+            + self.mint_with.serialized_length()
+            + self.receiver.serialized_length()
     }
 }
 
@@ -214,11 +223,19 @@ impl FromBytes for ValidateUnfreezeData {
 
 impl ToBytes for ValidateUnfreezeData {
     fn to_bytes(&self) -> Result<Vec<u8>, bytesrepr::Error> {
-        todo!()
+        let mut result = bytesrepr::allocate_buffer(self)?;
+        result.extend(self.action_id.to_bytes()?);
+        result.extend(self.contract.to_bytes()?);
+        result.extend(self.token_id.to_bytes()?);
+        result.extend(self.receiver.to_bytes()?);
+        Ok(result)
     }
 
     fn serialized_length(&self) -> usize {
-        todo!()
+        self.action_id.serialized_length()
+            + self.contract.serialized_length()
+            + self.token_id.serialized_length()
+            + self.receiver.serialized_length()
     }
 }
 
@@ -259,11 +276,25 @@ impl FromBytes for FreezeNFT {
 
 impl ToBytes for FreezeNFT {
     fn to_bytes(&self) -> Result<Vec<u8>, bytesrepr::Error> {
-        todo!()
+        let mut result = bytesrepr::allocate_buffer(self)?;
+        result.extend(self.to.to_bytes()?);
+        result.extend(self.contract.to_bytes()?);
+        result.extend(self.token_id.to_bytes()?);
+        result.extend(self.amt.to_bytes()?);
+        result.extend(self.chain_nonce.to_bytes()?);
+        result.extend(self.mint_with.to_bytes()?);
+        result.extend(self.sig_data.to_bytes()?);
+        Ok(result)
     }
 
     fn serialized_length(&self) -> usize {
-        todo!()
+        self.to.serialized_length()
+            + self.contract.serialized_length()
+            + self.token_id.serialized_length()
+            + self.amt.serialized_length()
+            + self.chain_nonce.serialized_length()
+            + self.mint_with.serialized_length()
+            + self.sig_data.serialized_length()
     }
 }
 
@@ -301,11 +332,23 @@ impl FromBytes for WithdrawNFT {
 
 impl ToBytes for WithdrawNFT {
     fn to_bytes(&self) -> Result<Vec<u8>, bytesrepr::Error> {
-        todo!()
+        let mut result = bytesrepr::allocate_buffer(self)?;
+        result.extend(self.to.to_bytes()?);
+        result.extend(self.contract.to_bytes()?);
+        result.extend(self.token_id.to_bytes()?);
+        result.extend(self.amt.to_bytes()?);
+        result.extend(self.chain_nonce.to_bytes()?);
+        result.extend(self.sig_data.to_bytes()?);
+        Ok(result)
     }
 
     fn serialized_length(&self) -> usize {
-        todo!()
+        self.to.serialized_length()
+            + self.contract.serialized_length()
+            + self.token_id.serialized_length()
+            + self.amt.serialized_length()
+            + self.chain_nonce.serialized_length()
+            + self.sig_data.serialized_length()
     }
 }
 
@@ -318,11 +361,20 @@ pub struct TxFee {
 
 impl ToBytes for TxFee {
     fn to_bytes(&self) -> Result<Vec<u8>, bytesrepr::Error> {
-        todo!()
+        let mut result = bytesrepr::allocate_buffer(self)?;
+        result.extend(self.value.to_bytes()?);
+        result.extend(self.from.to_bytes()?);
+        result.extend(self.to.to_bytes()?);
+        result.extend(self.receiver.to_bytes()?);
+
+        Ok(result)
     }
 
     fn serialized_length(&self) -> usize {
-        todo!()
+        self.value.serialized_length()
+            + self.from.serialized_length()
+            + self.to.serialized_length()
+            + self.receiver.serialized_length()
     }
 }
 #[derive(Clone)]
