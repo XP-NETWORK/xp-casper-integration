@@ -59,6 +59,7 @@ pub const ARG_WHITELIST_DATA: &str = "whitelist_data";
 pub const ARG_BLACKLIST_DATA: &str = "blacklist_data";
 pub const ARG_UNPAUSE_DATA: &str = "unpause_data";
 pub const ARG_VALIDATE_TRANSFER_DATA: &str = "validate_transfer_data";
+pub const ARG_VALIDATE_UNFREEZE_DATA: &str = "validate_unfreeze_data";
 pub const ARG_SIG_DATA: &str = "sig_data";
 pub const KEY_PURSE: &str = "bridge_purse";
 pub const ARG_FEE_PUBLIC_KEY: &str = "fee_public_key";
@@ -236,7 +237,7 @@ pub extern "C" fn validate_unpause() {
 #[no_mangle]
 pub extern "C" fn validate_update_group_key() {
     let data: UpdateGroupKey = utils::get_named_arg_with_user_errors(
-        ARG_UNPAUSE_DATA,
+        ARG_UPDATE_GK,
         BridgeError::MissingArgumentGroupKey,
         BridgeError::InvalidArgumentGroupKey,
     )
@@ -352,7 +353,7 @@ pub extern "C" fn validate_transfer_nft() {
 pub extern "C" fn validate_unfreeze_nft() {
     require_not_paused();
     let data: ValidateUnfreezeData = utils::get_named_arg_with_user_errors(
-        ARG_GROUP_KEY,
+        ARG_VALIDATE_UNFREEZE_DATA,
         BridgeError::MissingArgumentGroupKey,
         BridgeError::InvalidArgumentGroupKey,
     )
@@ -472,6 +473,7 @@ pub extern "C" fn validate_whitelist() {
     storage::dictionary_put(whitelist_uref, &data.contract.to_string(), true)
 }
 
+#[no_mangle]
 pub extern "C" fn validate_blacklist() {
     let data: ValidateBlacklist = utils::get_named_arg_with_user_errors(
         ARG_BLACKLIST_DATA,
@@ -671,11 +673,104 @@ fn generate_entry_points() -> EntryPoints {
         EntryPointAccess::Public,
         EntryPointType::Contract,
     );
+    let validate_unfreeze_nft = EntryPoint::new(
+        ENTRY_POINT_BRIDGE_VALIDATE_UNFREEZE_NFT,
+        vec![
+            Parameter::new(
+                ARG_VALIDATE_UNFREEZE_DATA,
+                CLType::List(Box::new(CLType::U8)),
+            ),
+            Parameter::new(ARG_SIG_DATA, CLType::List(Box::new(CLType::U8))),
+        ],
+        CLType::Unit,
+        EntryPointAccess::Public,
+        EntryPointType::Contract,
+    );
+
+    let freeze_nft = EntryPoint::new(
+        ENTRY_POINT_BRIDGE_FREEZE,
+        vec![Parameter::new(
+            ARG_FREEZE_DATA,
+            CLType::List(Box::new(CLType::U8)),
+        )],
+        CLType::Unit,
+        EntryPointAccess::Public,
+        EntryPointType::Contract,
+    );
+    let withdraw_nft = EntryPoint::new(
+        ENTRY_POINT_BRIDGE_WITHDRAW,
+        vec![Parameter::new(
+            ARG_WITHDRAW_DATA,
+            CLType::List(Box::new(CLType::U8)),
+        )],
+        CLType::Unit,
+        EntryPointAccess::Public,
+        EntryPointType::Contract,
+    );
+    let validate_update_group_key = EntryPoint::new(
+        ENTRY_POINT_BRIDGE_VALIDATE_UPDATE_GK,
+        vec![
+            Parameter::new(ARG_UPDATE_GK, CLType::List(Box::new(CLType::U8))),
+            Parameter::new(ARG_SIG_DATA, CLType::List(Box::new(CLType::U8))),
+        ],
+        CLType::Unit,
+        EntryPointAccess::Public,
+        EntryPointType::Contract,
+    );
+
+    let validate_update_fee_pk = EntryPoint::new(
+        ENTRY_POINT_BRIDGE_VALIDATE_UPDATE_FEE_PK,
+        vec![
+            Parameter::new(ARG_UPDATE_GK, CLType::List(Box::new(CLType::U8))),
+            Parameter::new(ARG_SIG_DATA, CLType::List(Box::new(CLType::U8))),
+        ],
+        CLType::Unit,
+        EntryPointAccess::Public,
+        EntryPointType::Contract,
+    );
+    let validate_withdraw_fees = EntryPoint::new(
+        ENTRY_POINT_BRIDGE_VALIDATE_WITHDRAW_FEES,
+        vec![
+            Parameter::new(ARG_WITHDRAW_DATA, CLType::List(Box::new(CLType::U8))),
+            Parameter::new(ARG_SIG_DATA, CLType::List(Box::new(CLType::U8))),
+        ],
+        CLType::Unit,
+        EntryPointAccess::Public,
+        EntryPointType::Contract,
+    );
+    let validate_whitelist = EntryPoint::new(
+        ENTRY_POINT_BRIDGE_VALIDATE_WHITELIST,
+        vec![
+            Parameter::new(ARG_WHITELIST_DATA, CLType::List(Box::new(CLType::U8))),
+            Parameter::new(ARG_SIG_DATA, CLType::List(Box::new(CLType::U8))),
+        ],
+        CLType::Unit,
+        EntryPointAccess::Public,
+        EntryPointType::Contract,
+    );
+    let validate_blacklist = EntryPoint::new(
+        ENTRY_POINT_BRIDGE_VALIDATE_BLACKLIST,
+        vec![
+            Parameter::new(ARG_BLACKLIST_DATA, CLType::List(Box::new(CLType::U8))),
+            Parameter::new(ARG_SIG_DATA, CLType::List(Box::new(CLType::U8))),
+        ],
+        CLType::Unit,
+        EntryPointAccess::Public,
+        EntryPointType::Contract,
+    );
 
     entrypoints.add_entry_point(init);
     entrypoints.add_entry_point(validate_pause);
     entrypoints.add_entry_point(validate_unpause);
     entrypoints.add_entry_point(validate_transfer_nft);
+    entrypoints.add_entry_point(validate_unfreeze_nft);
+    entrypoints.add_entry_point(validate_update_group_key);
+    entrypoints.add_entry_point(validate_update_fee_pk);
+    entrypoints.add_entry_point(validate_withdraw_fees);
+    entrypoints.add_entry_point(validate_whitelist);
+    entrypoints.add_entry_point(validate_blacklist);
+    entrypoints.add_entry_point(freeze_nft);
+    entrypoints.add_entry_point(withdraw_nft);
     entrypoints
 }
 
