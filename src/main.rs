@@ -441,7 +441,7 @@ fn require_whitelist(contract: ContractHash) {
         runtime::revert(BridgeError::NotWhitelistedContract)
     }
 }
-
+#[no_mangle]
 pub extern "C" fn validate_whitelist() {
     let data: ValidateWhitelist = utils::get_named_arg_with_user_errors(
         ARG_WHITELIST_DATA,
@@ -791,7 +791,7 @@ fn install_contract() {
         Some(hash_key_name.clone()),
         Some(format!("bridge")),
     );
-    runtime::put_key(THIS_CONTRACT, storage::new_uref(contract_hash).into());
+    runtime::put_key(THIS_CONTRACT, contract_hash.into());
 }
 
 #[no_mangle]
