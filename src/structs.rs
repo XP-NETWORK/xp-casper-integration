@@ -1,7 +1,8 @@
 use alloc::{string::String, vec::Vec};
 use casper_types::{
+    account::AccountHash,
     bytesrepr::{self, FromBytes, ToBytes},
-    ContractHash, Key, URef, U256, U512,
+    ContractHash, Key, U256, U512,
 };
 
 use crate::external::xp_nft::TokenIdentifier;
@@ -32,13 +33,13 @@ impl ToBytes for PauseData {
 #[derive(Clone)]
 pub struct WithdrawFeeData {
     pub action_id: U256,
-    pub receiver: URef,
+    pub receiver: AccountHash,
 }
 
 impl FromBytes for WithdrawFeeData {
     fn from_bytes(bytes: &[u8]) -> Result<(Self, &[u8]), bytesrepr::Error> {
         let (action_id, remainder) = U256::from_bytes(bytes)?;
-        let (receiver, remainder) = URef::from_bytes(remainder)?;
+        let (receiver, remainder) = AccountHash::from_bytes(remainder)?;
         Ok((
             Self {
                 action_id,
@@ -207,7 +208,7 @@ impl FromBytes for ValidateUnfreezeData {
     fn from_bytes(bytes: &[u8]) -> Result<(Self, &[u8]), bytesrepr::Error> {
         let (contract, remainder) = ContractHash::from_bytes(bytes)?;
         let (receiver, remainder) = Key::from_bytes(remainder)?;
-        let token_id = TokenIdentifier::Index(1);
+        let (token_id, remainder) = TokenIdentifier::from_bytes(remainder)?;
         let (action_id, remainder) = U256::from_bytes(remainder)?;
         Ok((
             Self {
@@ -254,7 +255,7 @@ impl FromBytes for FreezeNFT {
     fn from_bytes(bytes: &[u8]) -> Result<(Self, &[u8]), bytesrepr::Error> {
         let (contract, remainder) = ContractHash::from_bytes(bytes)?;
         let (to, remainder) = String::from_bytes(remainder)?;
-        let token_id = TokenIdentifier::Index(1);
+        let (token_id, remainder) = TokenIdentifier::from_bytes(remainder)?;
         let (mint_with, remainder) = String::from_bytes(remainder)?;
         let (sig_data, remainder) = Vec::from_bytes(remainder)?;
         let (chain_nonce, remainder) = u8::from_bytes(remainder)?;
@@ -312,7 +313,7 @@ impl FromBytes for WithdrawNFT {
     fn from_bytes(bytes: &[u8]) -> Result<(Self, &[u8]), bytesrepr::Error> {
         let (contract, remainder) = ContractHash::from_bytes(bytes)?;
         let (to, remainder) = String::from_bytes(remainder)?;
-        let token_id = TokenIdentifier::Index(1);
+        let (token_id, remainder) = TokenIdentifier::from_bytes(remainder)?;
         let (sig_data, remainder) = Vec::from_bytes(remainder)?;
         let (chain_nonce, remainder) = u8::from_bytes(remainder)?;
         let (amt, remainder) = U512::from_bytes(remainder)?;
