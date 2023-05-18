@@ -151,6 +151,7 @@ dependencies = [
  "casper-event-standard",
  "casper-types",
  "ed25519-compact",
+ "hex",
  "sha2 0.10.6",
 ]
 

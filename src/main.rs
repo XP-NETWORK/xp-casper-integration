@@ -23,7 +23,7 @@ use casper_contract::{
         self, account,
         runtime::{self},
         storage,
-        system::transfer_from_purse_to_purse,
+        system::{transfer_from_purse_to_account, transfer_from_purse_to_purse},
     },
     unwrap_or_revert::UnwrapOrRevert,
 };
@@ -42,7 +42,7 @@ use external::xp_nft::{burn, mint, transfer};
 use keys::*;
 use sha2::{Digest, Sha512};
 use structs::{
-    FreezeNFT, PauseData, TxFee, UnpauseData, UpdateGroupKey, ValidateBlacklist,
+    FreezeNFT, PauseData, Sig, TxFee, UnpauseData, UpdateGroupKey, ValidateBlacklist,
     ValidateTransferData, ValidateUnfreezeData, ValidateWhitelist, WithdrawFeeData, WithdrawNFT,
 };
 
@@ -101,7 +101,7 @@ pub fn get_group_key() -> [u8; 32] {
 /// Ed25519 Signature verification logic.
 /// Signature check for bridge actions.
 /// Consumes the passed action_id.
-fn require_sig(action_id: U256, data: Vec<u8>, sig_data: Vec<u8>, context: &[u8]) {
+fn require_sig(action_id: U256, data: Vec<u8>, sig_data: &[u8], context: &[u8]) {
     let f = check_consumed_action(&action_id);
 
     if !f {
@@ -117,7 +117,7 @@ fn require_sig(action_id: U256, data: Vec<u8>, sig_data: Vec<u8>, context: &[u8]
 
     let group_key = get_group_key();
 
-    let sig = Signature::new(sig_data.as_slice().try_into().unwrap());
+    let sig = Signature::new(sig_data.try_into().unwrap());
     let key = PublicKey::new(group_key);
     let res = key.verify(hash, &sig);
     if !res.is_ok() {
@@ -131,26 +131,11 @@ pub extern "C" fn init() {
         runtime::revert(BridgeError::AlreadyInitialized);
     }
 
-    let group_key: Vec<u8> = utils::get_named_arg_with_user_errors(
-        ARG_GROUP_KEY,
-        BridgeError::MissingArgumentGroupKey,
-        BridgeError::InvalidArgumentGroupKey,
-    )
-    .unwrap_or_revert();
+    let group_key: [u8; 32] = runtime::get_named_arg(ARG_GROUP_KEY);
 
-    let fee_public_key: Vec<u8> = utils::get_named_arg_with_user_errors(
-        ARG_FEE_PUBLIC_KEY,
-        BridgeError::MissingArgumentFeePublicKey,
-        BridgeError::MissingArgumentFeePublicKey,
-    )
-    .unwrap_or_revert();
+    let fee_public_key: [u8; 32] = runtime::get_named_arg(ARG_FEE_PUBLIC_KEY);
 
-    let whitelist_contracts: Vec<ContractHash> = utils::get_named_arg_with_user_errors(
-        ARG_WHITELIST,
-        BridgeError::MissingArgumentFeePublicKey,
-        BridgeError::MissingArgumentFeePublicKey,
-    )
-    .unwrap_or_revert();
+    let whitelist_contracts: Vec<ContractHash> = runtime::get_named_arg(ARG_WHITELIST);
 
     runtime::put_key(INITIALIZED, storage::new_uref(true).into());
 
@@ -179,7 +164,7 @@ pub extern "C" fn validate_pause() {
     )
     .unwrap_or_revert();
 
-    let sig_data: Vec<u8> = utils::get_named_arg_with_user_errors(
+    let sig_data: Sig = utils::get_named_arg_with_user_errors(
         ARG_SIG_DATA,
         BridgeError::MissingArgumentGroupKey,
         BridgeError::InvalidArgumentGroupKey,
@@ -189,7 +174,7 @@ pub extern "C" fn validate_pause() {
     require_sig(
         data.action_id,
         serialize(data).unwrap_or_revert(),
-        sig_data,
+        &sig_data.0,
         b"SetPause",
     );
 
@@ -211,7 +196,7 @@ pub extern "C" fn validate_unpause() {
     )
     .unwrap_or_revert();
 
-    let sig_data: Vec<u8> = utils::get_named_arg_with_user_errors(
+    let sig_data: Sig = utils::get_named_arg_with_user_errors(
         ARG_SIG_DATA,
         BridgeError::MissingArgumentGroupKey,
         BridgeError::InvalidArgumentGroupKey,
@@ -221,7 +206,7 @@ pub extern "C" fn validate_unpause() {
     require_sig(
         data.action_id,
         serialize(data).unwrap_or_revert(),
-        sig_data,
+        &sig_data.0,
         b"SetPause",
     );
 
@@ -243,7 +228,7 @@ pub extern "C" fn validate_update_group_key() {
     )
     .unwrap_or_revert();
 
-    let sig_data: Vec<u8> = utils::get_named_arg_with_user_errors(
+    let sig_data: Sig = utils::get_named_arg_with_user_errors(
         ARG_SIG_DATA,
         BridgeError::MissingArgumentGroupKey,
         BridgeError::InvalidArgumentGroupKey,
@@ -253,7 +238,7 @@ pub extern "C" fn validate_update_group_key() {
     require_sig(
         data.action_id,
         serialize(data.clone()).unwrap_or_revert(),
-        sig_data,
+        &sig_data.0,
         b"UpdateGroupKey",
     );
 
@@ -275,7 +260,7 @@ pub extern "C" fn validate_update_fee_pk() {
     )
     .unwrap_or_revert();
 
-    let sig_data: Vec<u8> = utils::get_named_arg_with_user_errors(
+    let sig_data: Sig = utils::get_named_arg_with_user_errors(
         ARG_SIG_DATA,
         BridgeError::MissingArgumentGroupKey,
         BridgeError::InvalidArgumentGroupKey,
@@ -285,7 +270,7 @@ pub extern "C" fn validate_update_fee_pk() {
     require_sig(
         data.action_id,
         serialize(data.clone()).unwrap_or_revert(),
-        sig_data,
+        &sig_data.0,
         b"UpdateFeePk",
     );
 
@@ -332,7 +317,7 @@ pub extern "C" fn validate_transfer_nft() {
     )
     .unwrap_or_revert();
 
-    let sig_data: Vec<u8> = utils::get_named_arg_with_user_errors(
+    let sig_data: Sig = utils::get_named_arg_with_user_errors(
         ARG_SIG_DATA,
         BridgeError::MissingArgumentGroupKey,
         BridgeError::InvalidArgumentGroupKey,
@@ -342,7 +327,7 @@ pub extern "C" fn validate_transfer_nft() {
     require_sig(
         data.action_id,
         serialize(data.clone()).unwrap_or_revert(),
-        sig_data,
+        &sig_data.0,
         b"ValidateTransferNft",
     );
 
@@ -359,7 +344,7 @@ pub extern "C" fn validate_unfreeze_nft() {
     )
     .unwrap_or_revert();
 
-    let sig_data: Vec<u8> = utils::get_named_arg_with_user_errors(
+    let sig_data: Sig = utils::get_named_arg_with_user_errors(
         ARG_SIG_DATA,
         BridgeError::MissingArgumentGroupKey,
         BridgeError::InvalidArgumentGroupKey,
@@ -369,7 +354,7 @@ pub extern "C" fn validate_unfreeze_nft() {
     require_sig(
         data.action_id,
         serialize(data.clone()).unwrap_or_revert(),
-        sig_data,
+        &sig_data.0,
         b"ValidateUnfreezeNft",
     );
 
@@ -400,7 +385,7 @@ pub extern "C" fn validate_withdraw_fees() {
     )
     .unwrap_or_revert();
 
-    let sig_data: Vec<u8> = utils::get_named_arg_with_user_errors(
+    let sig_data: Sig = utils::get_named_arg_with_user_errors(
         ARG_SIG_DATA,
         BridgeError::MissingArgumentGroupKey,
         BridgeError::InvalidArgumentGroupKey,
@@ -410,7 +395,7 @@ pub extern "C" fn validate_withdraw_fees() {
     require_sig(
         data.action_id,
         serialize(data.clone()).unwrap_or_revert(),
-        sig_data,
+        &sig_data.0,
         b"ValidateWithdrawFees",
     );
 
@@ -423,7 +408,7 @@ pub extern "C" fn validate_withdraw_fees() {
     let purse: URef = storage::read_or_revert(this_contract_purse_uref);
 
     let bal = contract_api::system::get_purse_balance(purse).unwrap_or(U512::from(0));
-    transfer_from_purse_to_purse(purse, data.receiver, bal, None).unwrap_or_revert();
+    transfer_from_purse_to_account(purse, data.receiver, bal, None).unwrap_or_revert();
 }
 
 fn require_whitelist(contract: ContractHash) {
@@ -450,7 +435,7 @@ pub extern "C" fn validate_whitelist() {
     )
     .unwrap_or_revert();
 
-    let sig_data: Vec<u8> = utils::get_named_arg_with_user_errors(
+    let sig_data: Sig = utils::get_named_arg_with_user_errors(
         ARG_SIG_DATA,
         BridgeError::MissingArgumentGroupKey,
         BridgeError::InvalidArgumentGroupKey,
@@ -460,7 +445,7 @@ pub extern "C" fn validate_whitelist() {
     require_sig(
         data.action_id,
         serialize(data.clone()).unwrap_or_revert(),
-        sig_data,
+        &sig_data.0,
         b"WhitelistNftAction",
     );
 
@@ -482,7 +467,7 @@ pub extern "C" fn validate_blacklist() {
     )
     .unwrap_or_revert();
 
-    let sig_data: Vec<u8> = utils::get_named_arg_with_user_errors(
+    let sig_data: Sig = utils::get_named_arg_with_user_errors(
         ARG_SIG_DATA,
         BridgeError::MissingArgumentGroupKey,
         BridgeError::InvalidArgumentGroupKey,
@@ -492,7 +477,7 @@ pub extern "C" fn validate_blacklist() {
     require_sig(
         data.action_id,
         serialize(data.clone()).unwrap_or_revert(),
-        sig_data,
+        &sig_data.0,
         b"BlacklistNftAction",
     );
 
@@ -523,7 +508,7 @@ pub extern "C" fn freeze_nft() {
             receiver: data.to.clone(),
             value: data.amt,
         },
-        data.sig_data,
+        &data.sig_data.0,
     );
 
     require_whitelist(data.contract);
@@ -573,7 +558,7 @@ pub extern "C" fn withdraw_nft() {
             receiver: data.to.clone(),
             value: data.amt,
         },
-        data.sig_data,
+        &data.sig_data.0,
     );
 
     transfer_tx_fees(data.amt.clone());
@@ -589,7 +574,7 @@ pub extern "C" fn withdraw_nft() {
     casper_event_standard::emit(ev);
 }
 
-fn require_enough_fees(tx_fee: TxFee, sig_data: Vec<u8>) {
+fn require_enough_fees(tx_fee: TxFee, sig_data: &[u8]) {
     let fee = serialize(tx_fee).unwrap();
 
     let gk_uref = utils::get_uref(
@@ -604,7 +589,7 @@ fn require_enough_fees(tx_fee: TxFee, sig_data: Vec<u8>) {
     hasher.update(fee);
     let hash = hasher.finalize();
 
-    let sig = Signature::new(sig_data.as_slice().try_into().unwrap());
+    let sig = Signature::new(sig_data.try_into().unwrap());
     let key = PublicKey::new(group_key);
     let res = key.verify(hash, &sig);
     if !res.is_ok() {
@@ -631,8 +616,9 @@ fn generate_entry_points() -> EntryPoints {
     let init = EntryPoint::new(
         ENTRY_POINT_BRIDGE_INITIALIZE,
         vec![
-            Parameter::new(ARG_GROUP_KEY, CLType::List(Box::new(CLType::U8))),
-            Parameter::new(ARG_FEE_PUBLIC_KEY, CLType::List(Box::new(CLType::U8))),
+            Parameter::new(ARG_GROUP_KEY, CLType::ByteArray(32)),
+            Parameter::new(ARG_FEE_PUBLIC_KEY, CLType::ByteArray(32)),
+            Parameter::new(ARG_WHITELIST, CLType::List(Box::new(CLType::ByteArray(32)))),
         ],
         CLType::Unit,
         EntryPointAccess::Public,
@@ -643,7 +629,7 @@ fn generate_entry_points() -> EntryPoints {
         ENTRY_POINT_BRIDGE_VALIDATE_PAUSE,
         vec![
             Parameter::new(ARG_PAUSE_DATA, CLType::List(Box::new(CLType::U8))),
-            Parameter::new(ARG_SIG_DATA, CLType::List(Box::new(CLType::U8))),
+            Parameter::new(ARG_SIG_DATA, CLType::String),
         ],
         CLType::Unit,
         EntryPointAccess::Public,
@@ -667,7 +653,7 @@ fn generate_entry_points() -> EntryPoints {
                 ARG_VALIDATE_TRANSFER_DATA,
                 CLType::List(Box::new(CLType::U8)),
             ),
-            Parameter::new(ARG_SIG_DATA, CLType::List(Box::new(CLType::U8))),
+            Parameter::new(ARG_SIG_DATA, CLType::String),
         ],
         CLType::Unit,
         EntryPointAccess::Public,
@@ -680,7 +666,7 @@ fn generate_entry_points() -> EntryPoints {
                 ARG_VALIDATE_UNFREEZE_DATA,
                 CLType::List(Box::new(CLType::U8)),
             ),
-            Parameter::new(ARG_SIG_DATA, CLType::List(Box::new(CLType::U8))),
+            Parameter::new(ARG_SIG_DATA, CLType::String),
         ],
         CLType::Unit,
         EntryPointAccess::Public,
@@ -711,7 +697,7 @@ fn generate_entry_points() -> EntryPoints {
         ENTRY_POINT_BRIDGE_VALIDATE_UPDATE_GK,
         vec![
             Parameter::new(ARG_UPDATE_GK, CLType::List(Box::new(CLType::U8))),
-            Parameter::new(ARG_SIG_DATA, CLType::List(Box::new(CLType::U8))),
+            Parameter::new(ARG_SIG_DATA, CLType::String),
         ],
         CLType::Unit,
         EntryPointAccess::Public,
@@ -722,7 +708,7 @@ fn generate_entry_points() -> EntryPoints {
         ENTRY_POINT_BRIDGE_VALIDATE_UPDATE_FEE_PK,
         vec![
             Parameter::new(ARG_UPDATE_GK, CLType::List(Box::new(CLType::U8))),
-            Parameter::new(ARG_SIG_DATA, CLType::List(Box::new(CLType::U8))),
+            Parameter::new(ARG_SIG_DATA, CLType::String),
         ],
         CLType::Unit,
         EntryPointAccess::Public,
@@ -732,7 +718,7 @@ fn generate_entry_points() -> EntryPoints {
         ENTRY_POINT_BRIDGE_VALIDATE_WITHDRAW_FEES,
         vec![
             Parameter::new(ARG_WITHDRAW_DATA, CLType::List(Box::new(CLType::U8))),
-            Parameter::new(ARG_SIG_DATA, CLType::List(Box::new(CLType::U8))),
+            Parameter::new(ARG_SIG_DATA, CLType::String),
         ],
         CLType::Unit,
         EntryPointAccess::Public,
@@ -742,7 +728,7 @@ fn generate_entry_points() -> EntryPoints {
         ENTRY_POINT_BRIDGE_VALIDATE_WHITELIST,
         vec![
             Parameter::new(ARG_WHITELIST_DATA, CLType::List(Box::new(CLType::U8))),
-            Parameter::new(ARG_SIG_DATA, CLType::List(Box::new(CLType::U8))),
+            Parameter::new(ARG_SIG_DATA, CLType::String),
         ],
         CLType::Unit,
         EntryPointAccess::Public,
@@ -752,25 +738,25 @@ fn generate_entry_points() -> EntryPoints {
         ENTRY_POINT_BRIDGE_VALIDATE_BLACKLIST,
         vec![
             Parameter::new(ARG_BLACKLIST_DATA, CLType::List(Box::new(CLType::U8))),
-            Parameter::new(ARG_SIG_DATA, CLType::List(Box::new(CLType::U8))),
+            Parameter::new(ARG_SIG_DATA, CLType::String),
         ],
         CLType::Unit,
         EntryPointAccess::Public,
         EntryPointType::Contract,
     );
 
-    entrypoints.add_entry_point(init);
-    entrypoints.add_entry_point(validate_pause);
-    entrypoints.add_entry_point(validate_unpause);
-    entrypoints.add_entry_point(validate_transfer_nft);
-    entrypoints.add_entry_point(validate_unfreeze_nft);
-    entrypoints.add_entry_point(validate_update_group_key);
+    entrypoints.add_entry_point(init); // Serialization Not Needed
+    entrypoints.add_entry_point(validate_pause); // Serialization Done
+    entrypoints.add_entry_point(validate_unpause); // Serialization Done
+    entrypoints.add_entry_point(validate_transfer_nft); // Serialization Done
+    entrypoints.add_entry_point(validate_unfreeze_nft); // Serialization Done
+    entrypoints.add_entry_point(validate_update_group_key); // Serialization Done
     entrypoints.add_entry_point(validate_update_fee_pk);
-    entrypoints.add_entry_point(validate_withdraw_fees);
-    entrypoints.add_entry_point(validate_whitelist);
-    entrypoints.add_entry_point(validate_blacklist);
-    entrypoints.add_entry_point(freeze_nft);
-    entrypoints.add_entry_point(withdraw_nft);
+    entrypoints.add_entry_point(validate_withdraw_fees); // Serialization Done
+    entrypoints.add_entry_point(validate_whitelist); // Serialization Done
+    entrypoints.add_entry_point(validate_blacklist); // Serialization Done
+    entrypoints.add_entry_point(freeze_nft); // Serialization Done
+    entrypoints.add_entry_point(withdraw_nft); // Serialization Done
     entrypoints
 }
 
@@ -791,7 +777,13 @@ fn install_contract() {
         Some(hash_key_name.clone()),
         Some(format!("bridge")),
     );
-    runtime::put_key(THIS_CONTRACT, contract_hash.into());
+
+    let num: U512 = runtime::get_named_arg("number");
+
+    runtime::put_key(
+        &(THIS_CONTRACT.to_string() + &num.to_string()),
+        contract_hash.into(),
+    );
 }
 
 #[no_mangle]

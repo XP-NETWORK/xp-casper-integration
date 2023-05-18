@@ -1,4 +1,4 @@
-use alloc::string::String;
+use alloc::string::{String, ToString};
 use casper_event_standard::Event;
 use casper_types::{
     bytesrepr::{FromBytes, ToBytes},
@@ -35,14 +35,14 @@ impl FromBytes for TokenIdentifier {
 impl ToBytes for TokenIdentifier {
     fn to_bytes(&self) -> Result<alloc::vec::Vec<u8>, casper_types::bytesrepr::Error> {
         match self {
-            TokenIdentifier::Index(index) => index.to_bytes(),
+            TokenIdentifier::Index(index) => index.to_string().to_bytes(),
             TokenIdentifier::Hash(hash) => hash.to_bytes(),
         }
     }
 
     fn serialized_length(&self) -> usize {
         match self {
-            TokenIdentifier::Index(e) => e.serialized_length(),
+            TokenIdentifier::Index(e) => e.to_string().serialized_length(),
             TokenIdentifier::Hash(h) => h.serialized_length(),
         }
     }

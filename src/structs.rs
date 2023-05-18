@@ -2,7 +2,7 @@ use alloc::{string::String, vec::Vec};
 use casper_types::{
     account::AccountHash,
     bytesrepr::{self, FromBytes, ToBytes},
-    ContractHash, Key, U256, U512,
+    CLType, CLTyped, ContractHash, Key, U256, U512,
 };
 
 use crate::external::xp_nft::TokenIdentifier;
@@ -27,6 +27,35 @@ impl ToBytes for PauseData {
 
     fn serialized_length(&self) -> usize {
         self.action_id.serialized_length()
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct Sig(pub [u8; 64]);
+
+impl CLTyped for Sig {
+    fn cl_type() -> CLType {
+        CLType::String
+    }
+}
+
+impl FromBytes for Sig {
+    fn from_bytes(bytes: &[u8]) -> Result<(Self, &[u8]), bytesrepr::Error> {
+        let (sig, remainder) = String::from_bytes(bytes)?;
+        Ok((
+            Sig(hex::decode(sig).unwrap().try_into().unwrap()),
+            remainder,
+        ))
+    }
+}
+
+impl ToBytes for Sig {
+    fn to_bytes(&self) -> Result<Vec<u8>, bytesrepr::Error> {
+        hex::encode(self.0).to_bytes()
+    }
+
+    fn serialized_length(&self) -> usize {
+        hex::decode(self.0).unwrap().serialized_length()
     }
 }
 
@@ -248,7 +277,7 @@ pub struct FreezeNFT {
     pub mint_with: String,
     pub chain_nonce: u8,
     pub amt: U512,
-    pub sig_data: Vec<u8>,
+    pub sig_data: Sig,
 }
 
 impl FromBytes for FreezeNFT {
@@ -257,7 +286,7 @@ impl FromBytes for FreezeNFT {
         let (to, remainder) = String::from_bytes(remainder)?;
         let (token_id, remainder) = TokenIdentifier::from_bytes(remainder)?;
         let (mint_with, remainder) = String::from_bytes(remainder)?;
-        let (sig_data, remainder) = Vec::from_bytes(remainder)?;
+        let (sig_data, remainder) = Sig::from_bytes(remainder)?;
         let (chain_nonce, remainder) = u8::from_bytes(remainder)?;
         let (amt, remainder) = U512::from_bytes(remainder)?;
         Ok((
@@ -306,7 +335,7 @@ pub struct WithdrawNFT {
     pub chain_nonce: u8,
     pub contract: ContractHash,
     pub amt: U512,
-    pub sig_data: Vec<u8>,
+    pub sig_data: Sig,
 }
 
 impl FromBytes for WithdrawNFT {
@@ -314,7 +343,7 @@ impl FromBytes for WithdrawNFT {
         let (contract, remainder) = ContractHash::from_bytes(bytes)?;
         let (to, remainder) = String::from_bytes(remainder)?;
         let (token_id, remainder) = TokenIdentifier::from_bytes(remainder)?;
-        let (sig_data, remainder) = Vec::from_bytes(remainder)?;
+        let (sig_data, remainder) = Sig::from_bytes(remainder)?;
         let (chain_nonce, remainder) = u8::from_bytes(remainder)?;
         let (amt, remainder) = U512::from_bytes(remainder)?;
         Ok((
