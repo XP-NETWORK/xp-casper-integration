@@ -1,7 +1,7 @@
 use alloc::{string::String, vec::Vec};
 use casper_types::{
     account::AccountHash,
-    bytesrepr::{self, FromBytes, ToBytes},
+    bytesrepr::{self, Bytes, FromBytes, ToBytes},
     CLType, CLTyped, ContractHash, Key, U256, U512,
 };
 
@@ -277,7 +277,7 @@ pub struct FreezeNFT {
     pub mint_with: String,
     pub chain_nonce: u8,
     pub amt: U512,
-    pub sig_data: Sig,
+    pub sig_data: Bytes,
 }
 
 impl FromBytes for FreezeNFT {
@@ -286,7 +286,7 @@ impl FromBytes for FreezeNFT {
         let (to, remainder) = String::from_bytes(remainder)?;
         let (token_id, remainder) = TokenIdentifier::from_bytes(remainder)?;
         let (mint_with, remainder) = String::from_bytes(remainder)?;
-        let (sig_data, remainder) = Sig::from_bytes(remainder)?;
+        let (sig_data, remainder) = Bytes::from_bytes(remainder)?;
         let (chain_nonce, remainder) = u8::from_bytes(remainder)?;
         let (amt, remainder) = U512::from_bytes(remainder)?;
         Ok((
@@ -335,7 +335,7 @@ pub struct WithdrawNFT {
     pub chain_nonce: u8,
     pub contract: ContractHash,
     pub amt: U512,
-    pub sig_data: Sig,
+    pub sig_data: Bytes,
 }
 
 impl FromBytes for WithdrawNFT {
@@ -343,7 +343,7 @@ impl FromBytes for WithdrawNFT {
         let (contract, remainder) = ContractHash::from_bytes(bytes)?;
         let (to, remainder) = String::from_bytes(remainder)?;
         let (token_id, remainder) = TokenIdentifier::from_bytes(remainder)?;
-        let (sig_data, remainder) = Sig::from_bytes(remainder)?;
+        let (sig_data, remainder) = Bytes::from_bytes(remainder)?;
         let (chain_nonce, remainder) = u8::from_bytes(remainder)?;
         let (amt, remainder) = U512::from_bytes(remainder)?;
         Ok((
