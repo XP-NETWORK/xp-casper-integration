@@ -10,6 +10,35 @@ pub enum BridgeError {
     InvalidArgumentGroupKey,
     MissingArgumentFeePublicKey,
     InvalidArgumentFeePublicKey,
+    MissingArgumentSigData,
+    InvalidArgumentSigData,
+
+    MissingArgumentActionID,
+    InvalidArgumentActionID,
+
+    MissingArgumentMintWith,
+    InvalidArgumentMintWith,
+
+    MissingArgumentReceiver,
+    InvalidArgumentReceiver,
+
+    MissingArgumentMetadata,
+    InvalidArgumentMetadata,
+
+    MissingArgumentTokenID,
+    InvalidArgumentTokenID,
+
+    MissingArgumentChainNonce,
+    InvalidArgumentChainNonce,
+
+    MissingArgumentAmount,
+    InvalidArgumentAmount,
+
+    MissingArgumentTo,
+    InvalidArgumentTo,
+
+    MissingArgumentContract,
+    InvalidArgumentContract,
 
     MissingConsumedActionsUref,
     InvalidConsumedActionsUref,

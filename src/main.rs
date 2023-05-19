@@ -50,7 +50,7 @@ use external::xp_nft::{burn, mint, transfer, TokenIdentifier};
 use keys::*;
 use sha2::{Digest, Sha512};
 use structs::{
-    FreezeNFT, PauseData, Sig, TxFee, UnpauseData, UpdateGroupKey, ValidateBlacklist,
+    FreezeNFT, PauseData, TxFee, UnpauseData, UpdateGroupKey, ValidateBlacklist,
     ValidateTransferData, ValidateUnfreezeData, ValidateWhitelist, WithdrawFeeData, WithdrawNFT,
 };
 
@@ -172,17 +172,17 @@ pub extern "C" fn init() {
 #[no_mangle]
 pub extern "C" fn validate_pause() {
     let action_id: U256 = utils::get_named_arg_with_user_errors(
-        ARG_GROUP_KEY,
-        BridgeError::MissingArgumentGroupKey,
-        BridgeError::InvalidArgumentGroupKey,
+        ARG_ACTION_ID,
+        BridgeError::MissingArgumentActionID,
+        BridgeError::InvalidArgumentActionID,
     )
     .unwrap_or_revert();
     let data = PauseData { action_id };
 
     let sig_data: [u8; 64] = utils::get_named_arg_with_user_errors(
         ARG_SIG_DATA,
-        BridgeError::MissingArgumentGroupKey,
-        BridgeError::InvalidArgumentGroupKey,
+        BridgeError::MissingArgumentSigData,
+        BridgeError::InvalidArgumentSigData,
     )
     .unwrap_or_revert();
 
@@ -205,17 +205,17 @@ pub extern "C" fn validate_pause() {
 #[no_mangle]
 pub extern "C" fn validate_unpause() {
     let action_id: U256 = utils::get_named_arg_with_user_errors(
-        ARG_GROUP_KEY,
-        BridgeError::MissingArgumentGroupKey,
-        BridgeError::InvalidArgumentGroupKey,
+        ARG_ACTION_ID,
+        BridgeError::MissingArgumentActionID,
+        BridgeError::InvalidArgumentActionID,
     )
     .unwrap_or_revert();
     let data = UnpauseData { action_id };
 
     let sig_data: [u8; 64] = utils::get_named_arg_with_user_errors(
         ARG_SIG_DATA,
-        BridgeError::MissingArgumentGroupKey,
-        BridgeError::InvalidArgumentGroupKey,
+        BridgeError::MissingArgumentSigData,
+        BridgeError::InvalidArgumentSigData,
     )
     .unwrap_or_revert();
 
@@ -239,8 +239,8 @@ pub extern "C" fn validate_unpause() {
 pub extern "C" fn validate_update_group_key() {
     let action_id: U256 = utils::get_named_arg_with_user_errors(
         ARG_ACTION_ID,
-        BridgeError::MissingArgumentGroupKey,
-        BridgeError::InvalidArgumentGroupKey,
+        BridgeError::MissingArgumentActionID,
+        BridgeError::InvalidArgumentActionID,
     )
     .unwrap_or_revert();
 
@@ -258,8 +258,8 @@ pub extern "C" fn validate_update_group_key() {
 
     let sig_data: [u8; 64] = utils::get_named_arg_with_user_errors(
         ARG_SIG_DATA,
-        BridgeError::MissingArgumentGroupKey,
-        BridgeError::InvalidArgumentGroupKey,
+        BridgeError::MissingArgumentSigData,
+        BridgeError::InvalidArgumentSigData,
     )
     .unwrap_or_revert();
 
@@ -283,8 +283,8 @@ pub extern "C" fn validate_update_group_key() {
 pub extern "C" fn validate_update_fee_pk() {
     let action_id: U256 = utils::get_named_arg_with_user_errors(
         ARG_ACTION_ID,
-        BridgeError::MissingArgumentGroupKey,
-        BridgeError::InvalidArgumentGroupKey,
+        BridgeError::MissingArgumentActionID,
+        BridgeError::InvalidArgumentActionID,
     )
     .unwrap_or_revert();
 
@@ -302,8 +302,8 @@ pub extern "C" fn validate_update_fee_pk() {
 
     let sig_data: [u8; 64] = utils::get_named_arg_with_user_errors(
         ARG_SIG_DATA,
-        BridgeError::MissingArgumentGroupKey,
-        BridgeError::InvalidArgumentGroupKey,
+        BridgeError::MissingArgumentSigData,
+        BridgeError::InvalidArgumentSigData,
     )
     .unwrap_or_revert();
 
@@ -353,28 +353,28 @@ pub extern "C" fn validate_transfer_nft() {
 
     let mint_with: ContractHash = utils::get_named_arg_with_user_errors(
         ARG_MINT_WITH,
-        BridgeError::MissingArgumentGroupKey,
-        BridgeError::InvalidArgumentGroupKey,
+        BridgeError::MissingArgumentMintWith,
+        BridgeError::InvalidArgumentMintWith,
     )
     .unwrap_or_revert();
 
     let receiver: Key = utils::get_named_arg_with_user_errors(
         ARG_RECEIVER,
-        BridgeError::MissingArgumentGroupKey,
-        BridgeError::InvalidArgumentGroupKey,
+        BridgeError::MissingArgumentReceiver,
+        BridgeError::InvalidArgumentReceiver,
     )
     .unwrap_or_revert();
 
     let metadata: String = utils::get_named_arg_with_user_errors(
         ARG_METADATA,
-        BridgeError::MissingArgumentGroupKey,
-        BridgeError::InvalidArgumentGroupKey,
+        BridgeError::MissingArgumentMetadata,
+        BridgeError::InvalidArgumentMetadata,
     )
     .unwrap_or_revert();
     let action_id: U256 = utils::get_named_arg_with_user_errors(
         ARG_ACTION_ID,
-        BridgeError::MissingArgumentGroupKey,
-        BridgeError::InvalidArgumentGroupKey,
+        BridgeError::MissingArgumentActionID,
+        BridgeError::InvalidArgumentActionID,
     )
     .unwrap_or_revert();
 
@@ -387,8 +387,8 @@ pub extern "C" fn validate_transfer_nft() {
 
     let sig_data: [u8; 64] = utils::get_named_arg_with_user_errors(
         ARG_SIG_DATA,
-        BridgeError::MissingArgumentGroupKey,
-        BridgeError::InvalidArgumentGroupKey,
+        BridgeError::MissingArgumentSigData,
+        BridgeError::InvalidArgumentSigData,
     )
     .unwrap_or_revert();
 
@@ -407,29 +407,29 @@ pub extern "C" fn validate_unfreeze_nft() {
     require_not_paused();
 
     let contract: ContractHash = utils::get_named_arg_with_user_errors(
-        ARG_MINT_WITH,
-        BridgeError::MissingArgumentGroupKey,
-        BridgeError::InvalidArgumentGroupKey,
+        ARG_CONTRACT,
+        BridgeError::MissingArgumentContract,
+        BridgeError::InvalidArgumentContract,
     )
     .unwrap_or_revert();
 
     let receiver: Key = utils::get_named_arg_with_user_errors(
         ARG_RECEIVER,
-        BridgeError::MissingArgumentGroupKey,
-        BridgeError::InvalidArgumentGroupKey,
+        BridgeError::MissingArgumentReceiver,
+        BridgeError::InvalidArgumentReceiver,
     )
     .unwrap_or_revert();
 
     let token_id: TokenIdentifier = utils::get_named_arg_with_user_errors(
-        ARG_METADATA,
-        BridgeError::MissingArgumentGroupKey,
-        BridgeError::InvalidArgumentGroupKey,
+        ARG_TOKEN_ID,
+        BridgeError::MissingArgumentTokenID,
+        BridgeError::InvalidArgumentTokenID,
     )
     .unwrap_or_revert();
     let action_id: U256 = utils::get_named_arg_with_user_errors(
         ARG_ACTION_ID,
-        BridgeError::MissingArgumentGroupKey,
-        BridgeError::InvalidArgumentGroupKey,
+        BridgeError::MissingArgumentActionID,
+        BridgeError::InvalidArgumentActionID,
     )
     .unwrap_or_revert();
 
@@ -440,17 +440,17 @@ pub extern "C" fn validate_unfreeze_nft() {
         receiver,
     };
 
-    let sig_data: Sig = utils::get_named_arg_with_user_errors(
+    let sig_data: [u8; 64] = utils::get_named_arg_with_user_errors(
         ARG_SIG_DATA,
-        BridgeError::MissingArgumentGroupKey,
-        BridgeError::InvalidArgumentGroupKey,
+        BridgeError::MissingArgumentSigData,
+        BridgeError::InvalidArgumentSigData,
     )
     .unwrap_or_revert();
 
     require_sig(
         data.action_id,
         serialize(data.clone()).unwrap_or_revert(),
-        &sig_data.0,
+        &sig_data,
         b"ValidateUnfreezeNft",
     );
 
@@ -476,14 +476,14 @@ pub extern "C" fn validate_withdraw_fees() {
     require_not_paused();
     let action_id: U256 = utils::get_named_arg_with_user_errors(
         ARG_ACTION_ID,
-        BridgeError::MissingArgumentGroupKey,
-        BridgeError::InvalidArgumentGroupKey,
+        BridgeError::MissingArgumentActionID,
+        BridgeError::InvalidArgumentActionID,
     )
     .unwrap_or_revert();
     let receiver: AccountHash = utils::get_named_arg_with_user_errors(
         ARG_RECEIVER,
-        BridgeError::MissingArgumentGroupKey,
-        BridgeError::InvalidArgumentGroupKey,
+        BridgeError::MissingArgumentReceiver,
+        BridgeError::InvalidArgumentReceiver,
     )
     .unwrap_or_revert();
 
@@ -494,8 +494,8 @@ pub extern "C" fn validate_withdraw_fees() {
 
     let sig_data: [u8; 64] = utils::get_named_arg_with_user_errors(
         ARG_SIG_DATA,
-        BridgeError::MissingArgumentGroupKey,
-        BridgeError::InvalidArgumentGroupKey,
+        BridgeError::MissingArgumentSigData,
+        BridgeError::InvalidArgumentSigData,
     )
     .unwrap_or_revert();
 
@@ -537,14 +537,14 @@ fn require_whitelist(contract: ContractHash) {
 pub extern "C" fn validate_whitelist() {
     let action_id: U256 = utils::get_named_arg_with_user_errors(
         ARG_ACTION_ID,
-        BridgeError::MissingArgumentGroupKey,
-        BridgeError::InvalidArgumentGroupKey,
+        BridgeError::MissingArgumentActionID,
+        BridgeError::InvalidArgumentActionID,
     )
     .unwrap_or_revert();
     let contract: ContractHash = utils::get_named_arg_with_user_errors(
         ARG_CONTRACT,
-        BridgeError::MissingArgumentGroupKey,
-        BridgeError::InvalidArgumentGroupKey,
+        BridgeError::MissingArgumentContract,
+        BridgeError::InvalidArgumentContract,
     )
     .unwrap_or_revert();
     let data = ValidateWhitelist {
@@ -554,8 +554,8 @@ pub extern "C" fn validate_whitelist() {
 
     let sig_data: [u8; 64] = utils::get_named_arg_with_user_errors(
         ARG_SIG_DATA,
-        BridgeError::MissingArgumentGroupKey,
-        BridgeError::InvalidArgumentGroupKey,
+        BridgeError::MissingArgumentSigData,
+        BridgeError::InvalidArgumentSigData,
     )
     .unwrap_or_revert();
 
@@ -579,14 +579,14 @@ pub extern "C" fn validate_whitelist() {
 pub extern "C" fn validate_blacklist() {
     let action_id: U256 = utils::get_named_arg_with_user_errors(
         ARG_ACTION_ID,
-        BridgeError::MissingArgumentGroupKey,
-        BridgeError::InvalidArgumentGroupKey,
+        BridgeError::MissingArgumentActionID,
+        BridgeError::InvalidArgumentActionID,
     )
     .unwrap_or_revert();
     let contract: ContractHash = utils::get_named_arg_with_user_errors(
         ARG_CONTRACT,
-        BridgeError::MissingArgumentGroupKey,
-        BridgeError::InvalidArgumentGroupKey,
+        BridgeError::MissingArgumentContract,
+        BridgeError::InvalidArgumentContract,
     )
     .unwrap_or_revert();
     let data = ValidateBlacklist {
@@ -596,8 +596,8 @@ pub extern "C" fn validate_blacklist() {
 
     let sig_data: [u8; 64] = utils::get_named_arg_with_user_errors(
         ARG_SIG_DATA,
-        BridgeError::MissingArgumentGroupKey,
-        BridgeError::InvalidArgumentGroupKey,
+        BridgeError::MissingArgumentSigData,
+        BridgeError::InvalidArgumentSigData,
     )
     .unwrap_or_revert();
 
@@ -623,45 +623,45 @@ pub extern "C" fn freeze_nft() {
 
     let contract: ContractHash = utils::get_named_arg_with_user_errors(
         ARG_CONTRACT,
-        BridgeError::MissingArgumentGroupKey,
-        BridgeError::InvalidArgumentGroupKey,
+        BridgeError::MissingArgumentContract,
+        BridgeError::InvalidArgumentContract,
     )
     .unwrap_or_revert();
     let token_id: TokenIdentifier = utils::get_named_arg_with_user_errors(
         ARG_TOKEN_ID,
-        BridgeError::MissingArgumentGroupKey,
-        BridgeError::InvalidArgumentGroupKey,
+        BridgeError::MissingArgumentTokenID,
+        BridgeError::InvalidArgumentTokenID,
     )
     .unwrap_or_revert();
     let to: String = utils::get_named_arg_with_user_errors(
         ARG_TO,
-        BridgeError::MissingArgumentGroupKey,
-        BridgeError::InvalidArgumentGroupKey,
+        BridgeError::MissingArgumentTo,
+        BridgeError::InvalidArgumentTo,
     )
     .unwrap_or_revert();
     let mint_with: String = utils::get_named_arg_with_user_errors(
         ARG_MINT_WITH,
-        BridgeError::MissingArgumentGroupKey,
-        BridgeError::InvalidArgumentGroupKey,
+        BridgeError::MissingArgumentMintWith,
+        BridgeError::InvalidArgumentMintWith,
     )
     .unwrap_or_revert();
 
     let chain_nonce: u8 = utils::get_named_arg_with_user_errors(
         ARG_CHAIN_NONCE,
-        BridgeError::MissingArgumentGroupKey,
-        BridgeError::InvalidArgumentGroupKey,
+        BridgeError::MissingArgumentChainNonce,
+        BridgeError::InvalidArgumentChainNonce,
     )
     .unwrap_or_revert();
     let amt: U512 = utils::get_named_arg_with_user_errors(
         ARG_AMOUNT,
-        BridgeError::MissingArgumentGroupKey,
-        BridgeError::InvalidArgumentGroupKey,
+        BridgeError::MissingArgumentAmount,
+        BridgeError::InvalidArgumentAmount,
     )
     .unwrap_or_revert();
     let sig_data: Bytes = utils::get_named_arg_with_user_errors(
         ARG_SIG_DATA,
-        BridgeError::MissingArgumentGroupKey,
-        BridgeError::InvalidArgumentGroupKey,
+        BridgeError::MissingArgumentSigData,
+        BridgeError::InvalidArgumentSigData,
     )
     .unwrap_or_revert();
 
@@ -720,39 +720,39 @@ pub extern "C" fn withdraw_nft() {
 
     let contract: ContractHash = utils::get_named_arg_with_user_errors(
         ARG_CONTRACT,
-        BridgeError::MissingArgumentGroupKey,
-        BridgeError::InvalidArgumentGroupKey,
+        BridgeError::MissingArgumentContract,
+        BridgeError::InvalidArgumentContract,
     )
     .unwrap_or_revert();
     let token_id: TokenIdentifier = utils::get_named_arg_with_user_errors(
         ARG_TOKEN_ID,
-        BridgeError::MissingArgumentGroupKey,
-        BridgeError::InvalidArgumentGroupKey,
+        BridgeError::MissingArgumentTokenID,
+        BridgeError::InvalidArgumentTokenID,
     )
     .unwrap_or_revert();
     let to: String = utils::get_named_arg_with_user_errors(
         ARG_TO,
-        BridgeError::MissingArgumentGroupKey,
-        BridgeError::InvalidArgumentGroupKey,
+        BridgeError::MissingArgumentTo,
+        BridgeError::InvalidArgumentTo,
     )
     .unwrap_or_revert();
 
     let chain_nonce: u8 = utils::get_named_arg_with_user_errors(
         ARG_CHAIN_NONCE,
-        BridgeError::MissingArgumentGroupKey,
-        BridgeError::InvalidArgumentGroupKey,
+        BridgeError::MissingArgumentChainNonce,
+        BridgeError::InvalidArgumentChainNonce,
     )
     .unwrap_or_revert();
     let amt: U512 = utils::get_named_arg_with_user_errors(
         ARG_AMOUNT,
-        BridgeError::MissingArgumentGroupKey,
-        BridgeError::InvalidArgumentGroupKey,
+        BridgeError::MissingArgumentAmount,
+        BridgeError::InvalidArgumentAmount,
     )
     .unwrap_or_revert();
     let sig_data: Bytes = utils::get_named_arg_with_user_errors(
         ARG_SIG_DATA,
-        BridgeError::MissingArgumentGroupKey,
-        BridgeError::InvalidArgumentGroupKey,
+        BridgeError::MissingArgumentSigData,
+        BridgeError::InvalidArgumentSigData,
     )
     .unwrap_or_revert();
 
