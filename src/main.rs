@@ -223,7 +223,7 @@ pub extern "C" fn validate_unpause() {
         data.action_id,
         serialize(data).unwrap_or_revert(),
         &sig_data,
-        b"SetPause",
+        b"SetUnpause",
     );
 
     let paused_uref = utils::get_uref(
