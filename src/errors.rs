@@ -62,6 +62,11 @@ pub enum BridgeError {
     UnexpectedKeyVariant,
     FailedToCreateDictionary,
     FailedToGetArgBytes,
+
+    FailedToSerializeTxFee,
+    FailedToSerializeActionStruct,
+    FailedToPrepareSignature,
+    FailedToGetDictItem,
 }
 
 impl From<BridgeError> for ApiError {

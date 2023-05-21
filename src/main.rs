@@ -36,7 +36,7 @@ use casper_contract::{
 // Importing specific Casper types.
 use casper_types::{
     account::AccountHash,
-    bytesrepr::{serialize, Bytes},
+    bytesrepr::{serialize, Bytes, ToBytes},
     contracts::{EntryPoint, EntryPointAccess, EntryPointType, EntryPoints, NamedKeys},
     system::{auction::ARG_AMOUNT, mint::ARG_TO},
     CLType, ContractHash, Key, Parameter, URef, U256, U512,
@@ -87,7 +87,7 @@ fn check_consumed_action(action_id: &U256) -> bool {
     );
 
     storage::dictionary_get::<bool>(consumed_actions_uref, &action_id.to_string())
-        .unwrap_or_revert()
+        .unwrap_or_revert_with(BridgeError::FailedToGetDictItem)
         .is_none()
 }
 
@@ -131,7 +131,12 @@ fn require_sig(action_id: U256, data: Vec<u8>, sig_data: &[u8], context: &[u8]) 
 
     let group_key = get_group_key();
 
-    let sig = Signature::new(sig_data.try_into().unwrap());
+    let sig = Signature::new(
+        sig_data
+            .try_into()
+            .map_err(|_| BridgeError::FailedToPrepareSignature)
+            .unwrap_or_revert_with(BridgeError::FailedToPrepareSignature),
+    );
     let key = PublicKey::new(group_key);
     let res = key.verify(hash, &sig);
     if !res.is_ok() {
@@ -188,7 +193,8 @@ pub extern "C" fn validate_pause() {
 
     require_sig(
         data.action_id,
-        serialize(data).unwrap_or_revert(),
+        data.to_bytes()
+            .unwrap_or_revert_with(BridgeError::FailedToSerializeActionStruct),
         &sig_data,
         b"SetPause",
     );
@@ -221,7 +227,7 @@ pub extern "C" fn validate_unpause() {
 
     require_sig(
         data.action_id,
-        serialize(data).unwrap_or_revert(),
+        serialize(data).unwrap_or_revert_with(BridgeError::FailedToSerializeActionStruct),
         &sig_data,
         b"SetUnpause",
     );
@@ -265,7 +271,7 @@ pub extern "C" fn validate_update_group_key() {
 
     require_sig(
         data.action_id,
-        serialize(data.clone()).unwrap_or_revert(),
+        serialize(data.clone()).unwrap_or_revert_with(BridgeError::FailedToSerializeActionStruct),
         &sig_data,
         b"UpdateGroupKey",
     );
@@ -309,7 +315,7 @@ pub extern "C" fn validate_update_fee_pk() {
 
     require_sig(
         data.action_id,
-        serialize(data.clone()).unwrap_or_revert(),
+        serialize(data.clone()).unwrap_or_revert_with(BridgeError::FailedToSerializeActionStruct),
         &sig_data,
         b"UpdateFeePk",
     );
@@ -394,7 +400,7 @@ pub extern "C" fn validate_transfer_nft() {
 
     require_sig(
         data.action_id,
-        serialize(data.clone()).unwrap_or_revert(),
+        serialize(data.clone()).unwrap_or_revert_with(BridgeError::FailedToSerializeActionStruct),
         &sig_data,
         b"ValidateTransferNft",
     );
@@ -449,7 +455,7 @@ pub extern "C" fn validate_unfreeze_nft() {
 
     require_sig(
         data.action_id,
-        serialize(data.clone()).unwrap_or_revert(),
+        serialize(data.clone()).unwrap_or_revert_with(BridgeError::FailedToSerializeActionStruct),
         &sig_data,
         b"ValidateUnfreezeNft",
     );
@@ -501,7 +507,7 @@ pub extern "C" fn validate_withdraw_fees() {
 
     require_sig(
         data.action_id,
-        serialize(data.clone()).unwrap_or_revert(),
+        serialize(data.clone()).unwrap_or_revert_with(BridgeError::FailedToSerializeActionStruct),
         &sig_data,
         b"ValidateWithdrawFees",
     );
@@ -561,7 +567,7 @@ pub extern "C" fn validate_whitelist() {
 
     require_sig(
         data.action_id,
-        serialize(data.clone()).unwrap_or_revert(),
+        serialize(data.clone()).unwrap_or_revert_with(BridgeError::FailedToSerializeActionStruct),
         &sig_data,
         b"WhitelistNftAction",
     );
@@ -603,7 +609,7 @@ pub extern "C" fn validate_blacklist() {
 
     require_sig(
         data.action_id,
-        serialize(data.clone()).unwrap_or_revert(),
+        serialize(data.clone()).unwrap_or_revert_with(BridgeError::FailedToSerializeActionStruct),
         &sig_data,
         b"BlacklistNftAction",
     );
@@ -789,7 +795,7 @@ pub extern "C" fn withdraw_nft() {
 }
 
 fn require_enough_fees(tx_fee: TxFee, sig_data: &[u8]) {
-    let fee = serialize(tx_fee).unwrap();
+    let fee = serialize(tx_fee).unwrap_or_revert_with(BridgeError::FailedToSerializeTxFee);
 
     let gk_uref = utils::get_uref(
         KEY_FEE_PUBLIC_KEY,
@@ -803,7 +809,12 @@ fn require_enough_fees(tx_fee: TxFee, sig_data: &[u8]) {
     hasher.update(fee);
     let hash = hasher.finalize();
 
-    let sig = Signature::new(sig_data.try_into().unwrap());
+    let sig = Signature::new(
+        sig_data
+            .try_into()
+            .map_err(|_| BridgeError::FailedToPrepareSignature)
+            .unwrap_or_revert_with(BridgeError::FailedToPrepareSignature),
+    );
     let key = PublicKey::new(group_key);
     let res = key.verify(hash, &sig);
     if !res.is_ok() {
