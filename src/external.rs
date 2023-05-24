@@ -54,7 +54,7 @@ pub mod xp_nft {
     }
 
     pub fn burn(nft_contract: ContractHash, tid: TokenIdentifier) {
-        let _ = match tid {
+        match tid {
             TokenIdentifier::Index(token_idx) => runtime::call_contract::<()>(
                 nft_contract,
                 ENTRY_POINT_BURN,

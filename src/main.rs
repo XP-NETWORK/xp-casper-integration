@@ -1,8 +1,8 @@
 #![no_std]
 #![no_main]
 
-// #[cfg(not(target_arch = "wasm32"))]
-// compile_error!("target arch should be wasm32: compile with '--target wasm32-unknown-unknown'");
+#[cfg(not(target_arch = "wasm32"))]
+compile_error!("target arch should be wasm32: compile with '--target wasm32-unknown-unknown'");
 
 // This code imports necessary aspects of external crates that we will use in our contract code.
 extern crate alloc;
@@ -18,7 +18,6 @@ mod utils;
 // Importing Rust types.
 use alloc::{
     boxed::Box,
-    format,
     string::{String, ToString},
     vec,
     vec::Vec,
@@ -78,6 +77,8 @@ pub const ARG_TOKEN_ID: &str = "token_id";
 pub const KEY_PURSE: &str = "bridge_purse";
 pub const ARG_FEE_PUBLIC_KEY: &str = "fee_public_key";
 pub const ARG_WHITELIST: &str = "whitelist";
+pub const HASH_KEY_NAME: &str = "bridge_package";
+pub const ACCESS_KEY_NAME: &str = "access_key_name_bridge";
 
 fn check_consumed_action(action_id: &U256) -> bool {
     let consumed_actions_uref = utils::get_uref(
@@ -139,7 +140,7 @@ fn require_sig(action_id: U256, data: Vec<u8>, sig_data: &[u8], context: &[u8]) 
     );
     let key = PublicKey::new(group_key);
     let res = key.verify(hash, &sig);
-    if !res.is_ok() {
+    if res.is_err() {
         runtime::revert(BridgeError::UnauthorizedAction);
     }
 }
@@ -282,7 +283,7 @@ pub extern "C" fn validate_update_group_key() {
         BridgeError::InvalidGroupKeyUref,
     );
 
-    storage::write(gk_uref, data.new_key.clone())
+    storage::write(gk_uref, data.new_key)
 }
 
 #[no_mangle]
@@ -326,7 +327,7 @@ pub extern "C" fn validate_update_fee_pk() {
         BridgeError::InvalidFeePublicKeyUref,
     );
 
-    storage::write(fee_pk_uref, data.new_key.clone())
+    storage::write(fee_pk_uref, data.new_key)
 }
 
 pub fn require_not_paused() {
@@ -405,7 +406,7 @@ pub extern "C" fn validate_transfer_nft() {
         b"ValidateTransferNft",
     );
 
-    mint(data.mint_with, data.receiver, data.metadata.clone());
+    mint(data.mint_with, data.receiver, data.metadata);
 }
 
 #[no_mangle]
@@ -520,7 +521,7 @@ pub extern "C" fn validate_withdraw_fees() {
 
     let purse: URef = storage::read_or_revert(this_contract_purse_uref);
 
-    let bal = contract_api::system::get_purse_balance(purse).unwrap_or(U512::from(0));
+    let bal = contract_api::system::get_purse_balance(purse).unwrap_or_else(|| U512::from(0));
     transfer_from_purse_to_account(purse, data.receiver, bal, None).unwrap_or_revert();
 }
 
@@ -693,7 +694,7 @@ pub extern "C" fn freeze_nft() {
 
     require_whitelist(data.contract);
 
-    transfer_tx_fees(data.amt.clone());
+    transfer_tx_fees(data.amt);
 
     let this_uref = utils::get_uref(
         THIS_CONTRACT,
@@ -781,7 +782,7 @@ pub extern "C" fn withdraw_nft() {
         &data.sig_data,
     );
 
-    transfer_tx_fees(data.amt.clone());
+    transfer_tx_fees(data.amt);
 
     burn(data.contract, data.token_id.clone());
     let ev = UnfreezeNftEvent {
@@ -817,7 +818,7 @@ fn require_enough_fees(tx_fee: TxFee, sig_data: &[u8]) {
     );
     let key = PublicKey::new(group_key);
     let res = key.verify(hash, &sig);
-    if !res.is_ok() {
+    if res.is_err() {
         runtime::revert(BridgeError::IncorrectFeeSig);
     }
 }
@@ -856,7 +857,7 @@ fn generate_entry_points() -> EntryPoints {
             Parameter::new(ARG_ACTION_ID, CLType::U256),
             Parameter::new(ARG_SIG_DATA, CLType::ByteArray(64)),
         ],
-        CLType::Unit,
+        CLType::Bool,
         EntryPointAccess::Public,
         EntryPointType::Contract,
     );
@@ -866,7 +867,7 @@ fn generate_entry_points() -> EntryPoints {
             ARG_UNPAUSE_DATA,
             CLType::List(Box::new(CLType::U8)),
         )],
-        CLType::Unit,
+        CLType::Bool,
         EntryPointAccess::Public,
         EntryPointType::Contract,
     );
@@ -1008,13 +1009,11 @@ fn install_contract() {
         named_keys
     };
 
-    let hash_key_name = format!("bridge");
-
     let (contract_hash, _) = storage::new_contract(
         entry_points,
         Some(named_keys),
-        Some(hash_key_name.clone()),
-        Some(format!("bridge")),
+        Some(HASH_KEY_NAME.to_string()),
+        Some(ACCESS_KEY_NAME.to_string()),
     );
 
     let num: U512 = runtime::get_named_arg("number");

@@ -26,7 +26,7 @@ impl CLTyped for TokenIdentifier {
 impl FromBytes for TokenIdentifier {
     fn from_bytes(bytes: &[u8]) -> Result<(Self, &[u8]), casper_types::bytesrepr::Error> {
         let (tid, remainder) = String::from_bytes(bytes)?;
-        match u64::from_str_radix(&tid, 10) {
+        match tid.parse::<u64>() {
             Ok(e) => Ok((TokenIdentifier::Index(e), remainder)),
             Err(_) => Ok((TokenIdentifier::Hash(tid), remainder)),
         }
