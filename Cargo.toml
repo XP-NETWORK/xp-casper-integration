@@ -9,6 +9,6 @@ edition = "2021"
 casper-contract = "1.4.4"
 casper-types = "1.6.0"
 casper-event-standard = { version = "0.2.0", default-features = false }
-ed25519-compact = { version = "2.0.4", default-features= false }
+ed25519-dalek = { version = "1.0.1", default-features = false }
 sha2 = { version = "0.10.6", default-features = false }
-hex = {version = "0.4.3", default-features = false}
+hex = { version = "0.4.3", default-features = false }

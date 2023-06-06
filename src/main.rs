@@ -41,7 +41,7 @@ use casper_types::{
     CLType, ContractHash, Key, Parameter, URef, U256, U512,
 };
 
-use ed25519_compact::{PublicKey, Signature};
+use ed25519_dalek::{PublicKey, Signature, Verifier};
 use entrypoints::*;
 use errors::BridgeError;
 use events::{TransferNftEvent, UnfreezeNftEvent};
@@ -136,10 +136,12 @@ fn require_sig(action_id: U256, data: Vec<u8>, sig_data: &[u8], context: &[u8]) 
         sig_data
             .try_into()
             .map_err(|_| BridgeError::FailedToPrepareSignature)
-            .unwrap_or_revert_with(BridgeError::FailedToPrepareSignature),
+            .unwrap_or_revert(),
     );
-    let key = PublicKey::new(group_key);
-    let res = key.verify(hash, &sig);
+    let key = PublicKey::from_bytes(group_key.as_slice())
+        .map_err(|_| BridgeError::FailedToPreparePublicKey)
+        .unwrap_or_revert();
+    let res = key.verify(&hash, &sig);
     if res.is_err() {
         runtime::revert(BridgeError::UnauthorizedAction);
     }
@@ -814,10 +816,12 @@ fn require_enough_fees(tx_fee: TxFee, sig_data: &[u8]) {
         sig_data
             .try_into()
             .map_err(|_| BridgeError::FailedToPrepareSignature)
-            .unwrap_or_revert_with(BridgeError::FailedToPrepareSignature),
+            .unwrap_or_revert(),
     );
-    let key = PublicKey::new(group_key);
-    let res = key.verify(hash, &sig);
+    let key = PublicKey::from_bytes(group_key.as_slice())
+        .map_err(|_| BridgeError::FailedToPreparePublicKey)
+        .unwrap_or_revert();
+    let res = key.verify(&hash, &sig);
     if res.is_err() {
         runtime::revert(BridgeError::IncorrectFeeSig);
     }

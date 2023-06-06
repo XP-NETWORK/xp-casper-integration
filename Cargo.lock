@@ -150,7 +150,7 @@ dependencies = [
  "casper-contract",
  "casper-event-standard",
  "casper-types",
- "ed25519-compact",
+ "ed25519-dalek",
  "hex",
  "sha2 0.10.6",
 ]
@@ -251,12 +251,6 @@ checksum = "4620d40f6d2601794401d6dd95a5cf69b6c157852539470eeda433a99b3c0efc"
 dependencies = [
  "signature",
 ]
-
-[[package]]
-name = "ed25519-compact"
-version = "2.0.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6a3d382e8464107391c8706b4c14b087808ecb909f6c15c34114bc42e53a9e4c"
 
 [[package]]
 name = "ed25519-dalek"

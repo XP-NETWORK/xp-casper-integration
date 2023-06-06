@@ -67,6 +67,7 @@ pub enum BridgeError {
     FailedToSerializeActionStruct,
     FailedToPrepareSignature,
     FailedToGetDictItem,
+    FailedToPreparePublicKey,
 }
 
 impl From<BridgeError> for ApiError {
