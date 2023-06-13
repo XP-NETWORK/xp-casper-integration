@@ -181,10 +181,10 @@ impl FromBytes for ValidateTransferData {
 impl ToBytes for ValidateTransferData {
     fn to_bytes(&self) -> Result<Vec<u8>, bytesrepr::Error> {
         let mut result = bytesrepr::allocate_buffer(self)?;
-        result.extend(self.action_id.to_bytes()?);
-        result.extend(self.metadata.to_bytes()?);
         result.extend(self.mint_with.to_bytes()?);
         result.extend(self.receiver.to_bytes()?);
+        result.extend(self.metadata.to_bytes()?);
+        result.extend(self.action_id.to_bytes()?);
         Ok(result)
     }
 
@@ -225,10 +225,10 @@ impl FromBytes for ValidateUnfreezeData {
 impl ToBytes for ValidateUnfreezeData {
     fn to_bytes(&self) -> Result<Vec<u8>, bytesrepr::Error> {
         let mut result = bytesrepr::allocate_buffer(self)?;
-        result.extend(self.action_id.to_bytes()?);
         result.extend(self.contract.to_bytes()?);
-        result.extend(self.token_id.to_bytes()?);
         result.extend(self.receiver.to_bytes()?);
+        result.extend(self.token_id.to_bytes()?);
+        result.extend(self.action_id.to_bytes()?);
         Ok(result)
     }
 
@@ -278,13 +278,13 @@ impl FromBytes for FreezeNFT {
 impl ToBytes for FreezeNFT {
     fn to_bytes(&self) -> Result<Vec<u8>, bytesrepr::Error> {
         let mut result = bytesrepr::allocate_buffer(self)?;
-        result.extend(self.to.to_bytes()?);
         result.extend(self.contract.to_bytes()?);
+        result.extend(self.to.to_bytes()?);
         result.extend(self.token_id.to_bytes()?);
-        result.extend(self.amt.to_bytes()?);
-        result.extend(self.chain_nonce.to_bytes()?);
         result.extend(self.mint_with.to_bytes()?);
         result.extend(self.sig_data.to_bytes()?);
+        result.extend(self.chain_nonce.to_bytes()?);
+        result.extend(self.amt.to_bytes()?);
         Ok(result)
     }
 
@@ -334,12 +334,12 @@ impl FromBytes for WithdrawNFT {
 impl ToBytes for WithdrawNFT {
     fn to_bytes(&self) -> Result<Vec<u8>, bytesrepr::Error> {
         let mut result = bytesrepr::allocate_buffer(self)?;
-        result.extend(self.to.to_bytes()?);
         result.extend(self.contract.to_bytes()?);
+        result.extend(self.to.to_bytes()?);
         result.extend(self.token_id.to_bytes()?);
-        result.extend(self.amt.to_bytes()?);
-        result.extend(self.chain_nonce.to_bytes()?);
         result.extend(self.sig_data.to_bytes()?);
+        result.extend(self.chain_nonce.to_bytes()?);
+        result.extend(self.amt.to_bytes()?);
         Ok(result)
     }
 
