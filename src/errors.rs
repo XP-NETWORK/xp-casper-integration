@@ -3,7 +3,7 @@ use casper_types::ApiError;
 #[repr(u16)]
 #[derive(Clone, Copy)]
 pub enum BridgeError {
-    AlreadyInitialized,
+    AlreadyInitialized = 300,
 
     // Init Errors
     MissingArgumentGroupKey,
