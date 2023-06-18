@@ -1,7 +1,7 @@
 use alloc::{string::String, vec::Vec};
 use casper_types::{
     account::AccountHash,
-    bytesrepr::{self, Bytes, FromBytes, ToBytes},
+    bytesrepr::{self, FromBytes, ToBytes},
     ContractHash, Key, U256, U512,
 };
 
@@ -248,55 +248,7 @@ pub struct FreezeNFT {
     pub mint_with: String,
     pub chain_nonce: u8,
     pub amt: U512,
-    pub sig_data: Bytes,
-}
-
-impl FromBytes for FreezeNFT {
-    fn from_bytes(bytes: &[u8]) -> Result<(Self, &[u8]), bytesrepr::Error> {
-        let (contract, remainder) = ContractHash::from_bytes(bytes)?;
-        let (to, remainder) = String::from_bytes(remainder)?;
-        let (token_id, remainder) = TokenIdentifier::from_bytes(remainder)?;
-        let (mint_with, remainder) = String::from_bytes(remainder)?;
-        let (sig_data, remainder) = Bytes::from_bytes(remainder)?;
-        let (chain_nonce, remainder) = u8::from_bytes(remainder)?;
-        let (amt, remainder) = U512::from_bytes(remainder)?;
-        Ok((
-            Self {
-                token_id,
-                to,
-                mint_with,
-                contract,
-                sig_data,
-                chain_nonce,
-                amt,
-            },
-            remainder,
-        ))
-    }
-}
-
-impl ToBytes for FreezeNFT {
-    fn to_bytes(&self) -> Result<Vec<u8>, bytesrepr::Error> {
-        let mut result = bytesrepr::allocate_buffer(self)?;
-        result.extend(self.contract.to_bytes()?);
-        result.extend(self.to.to_bytes()?);
-        result.extend(self.token_id.to_bytes()?);
-        result.extend(self.mint_with.to_bytes()?);
-        result.extend(self.sig_data.to_bytes()?);
-        result.extend(self.chain_nonce.to_bytes()?);
-        result.extend(self.amt.to_bytes()?);
-        Ok(result)
-    }
-
-    fn serialized_length(&self) -> usize {
-        self.to.serialized_length()
-            + self.contract.serialized_length()
-            + self.token_id.serialized_length()
-            + self.amt.serialized_length()
-            + self.chain_nonce.serialized_length()
-            + self.mint_with.serialized_length()
-            + self.sig_data.serialized_length()
-    }
+    pub sig_data: [u8; 64],
 }
 
 #[derive(Clone)]
@@ -306,51 +258,7 @@ pub struct WithdrawNFT {
     pub chain_nonce: u8,
     pub contract: ContractHash,
     pub amt: U512,
-    pub sig_data: Bytes,
-}
-
-impl FromBytes for WithdrawNFT {
-    fn from_bytes(bytes: &[u8]) -> Result<(Self, &[u8]), bytesrepr::Error> {
-        let (contract, remainder) = ContractHash::from_bytes(bytes)?;
-        let (to, remainder) = String::from_bytes(remainder)?;
-        let (token_id, remainder) = TokenIdentifier::from_bytes(remainder)?;
-        let (sig_data, remainder) = Bytes::from_bytes(remainder)?;
-        let (chain_nonce, remainder) = u8::from_bytes(remainder)?;
-        let (amt, remainder) = U512::from_bytes(remainder)?;
-        Ok((
-            Self {
-                token_id,
-                to,
-                contract,
-                sig_data,
-                chain_nonce,
-                amt,
-            },
-            remainder,
-        ))
-    }
-}
-
-impl ToBytes for WithdrawNFT {
-    fn to_bytes(&self) -> Result<Vec<u8>, bytesrepr::Error> {
-        let mut result = bytesrepr::allocate_buffer(self)?;
-        result.extend(self.contract.to_bytes()?);
-        result.extend(self.to.to_bytes()?);
-        result.extend(self.token_id.to_bytes()?);
-        result.extend(self.sig_data.to_bytes()?);
-        result.extend(self.chain_nonce.to_bytes()?);
-        result.extend(self.amt.to_bytes()?);
-        Ok(result)
-    }
-
-    fn serialized_length(&self) -> usize {
-        self.to.serialized_length()
-            + self.contract.serialized_length()
-            + self.token_id.serialized_length()
-            + self.amt.serialized_length()
-            + self.chain_nonce.serialized_length()
-            + self.sig_data.serialized_length()
-    }
+    pub sig_data: [u8; 64],
 }
 
 pub struct TxFee {

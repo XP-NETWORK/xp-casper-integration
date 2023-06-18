@@ -35,7 +35,7 @@ use casper_contract::{
 // Importing specific Casper types.
 use casper_types::{
     account::AccountHash,
-    bytesrepr::{serialize, Bytes, ToBytes},
+    bytesrepr::{serialize, ToBytes},
     contracts::{EntryPoint, EntryPointAccess, EntryPointType, EntryPoints, NamedKeys},
     system::{auction::ARG_AMOUNT, mint::ARG_TO},
     CLType, ContractHash, Key, Parameter, URef, U256, U512,
@@ -45,7 +45,7 @@ use ed25519_dalek::{PublicKey, Signature, Verifier};
 use entrypoints::*;
 use errors::BridgeError;
 use events::{TransferNftEvent, UnfreezeNftEvent};
-use external::xp_nft::{burn, mint, transfer, TokenIdentifier};
+use external::xp_nft::{self, burn, mint, transfer, TokenIdentifier};
 use keys::*;
 use sha2::{Digest, Sha512};
 use structs::{
@@ -54,7 +54,7 @@ use structs::{
 };
 
 pub const INITIALIZED: &str = "initialized";
-pub const THIS_CONTRACT: &str = "this_contract";
+pub const THIS_CONTRACT: &str = "bridge_contract";
 pub const INSTALLER: &str = "installer";
 
 pub const ARG_GROUP_KEY: &str = "group_key";
@@ -401,12 +401,12 @@ pub extern "C" fn validate_transfer_nft() {
     )
     .unwrap_or_revert();
 
-    // require_sig(
-    //     data.action_id,
-    //     serialize(data.clone()).unwrap_or_revert_with(BridgeError::FailedToSerializeActionStruct),
-    //     &sig_data,
-    //     b"ValidateTransferNft",
-    // );
+    require_sig(
+        data.action_id,
+        serialize(data.clone()).unwrap_or_revert_with(BridgeError::FailedToSerializeActionStruct),
+        &sig_data,
+        b"ValidateTransferNft",
+    );
 
     mint(data.mint_with, data.receiver, data.metadata);
 }
@@ -667,7 +667,7 @@ pub extern "C" fn freeze_nft() {
         BridgeError::InvalidArgumentAmount,
     )
     .unwrap_or_revert();
-    let sig_data: Bytes = utils::get_named_arg_with_user_errors(
+    let sig_data: [u8; 64] = utils::get_named_arg_with_user_errors(
         ARG_SIG_DATA,
         BridgeError::MissingArgumentSigData,
         BridgeError::InvalidArgumentSigData,
@@ -683,6 +683,8 @@ pub extern "C" fn freeze_nft() {
         token_id,
         to,
     };
+
+    let meta = xp_nft::metadata(data.contract, data.token_id.clone());
 
     require_enough_fees(
         TxFee {
@@ -719,6 +721,7 @@ pub extern "C" fn freeze_nft() {
         contract: data.contract.to_string(),
         token_id: data.token_id,
         mint_with: data.mint_with,
+        metadata: meta,
     };
     casper_event_standard::emit(ev);
 }
@@ -758,7 +761,7 @@ pub extern "C" fn withdraw_nft() {
         BridgeError::InvalidArgumentAmount,
     )
     .unwrap_or_revert();
-    let sig_data: Bytes = utils::get_named_arg_with_user_errors(
+    let sig_data: [u8; 64] = utils::get_named_arg_with_user_errors(
         ARG_SIG_DATA,
         BridgeError::MissingArgumentSigData,
         BridgeError::InvalidArgumentSigData,
@@ -1020,12 +1023,7 @@ fn install_contract() {
         Some(ACCESS_KEY_NAME.to_string()),
     );
 
-    let num: U512 = runtime::get_named_arg("number");
-
-    runtime::put_key(
-        &(THIS_CONTRACT.to_string() + &num.to_string()),
-        contract_hash.into(),
-    );
+    runtime::put_key(THIS_CONTRACT, contract_hash.into());
 }
 
 #[no_mangle]

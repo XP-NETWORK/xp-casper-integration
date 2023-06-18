@@ -23,7 +23,7 @@ pub mod xp_nft {
     const ENTRY_POINT_METADATA: &str = "metadata";
 
     pub fn mint(nft_contract: ContractHash, token_owner: Key, token_metadata: String) {
-        let (_, _, _token_id_string) = runtime::call_contract::<(String, Key, String)>(
+        runtime::call_contract::<()>(
             nft_contract,
             ENTRY_POINT_MINT,
             runtime_args! {
@@ -33,7 +33,7 @@ pub mod xp_nft {
         );
     }
 
-    pub fn _metadata(nft_contract: ContractHash, tid: TokenIdentifier) -> String {
+    pub fn metadata(nft_contract: ContractHash, tid: TokenIdentifier) -> String {
         let (meta,) = match tid {
             TokenIdentifier::Index(token_idx) => runtime::call_contract::<(String,)>(
                 nft_contract,

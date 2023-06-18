@@ -15,6 +15,7 @@ pub struct TransferNftEvent {
     pub amt: U512,
     pub token_id: TokenIdentifier,
     pub contract: String,
+    pub metadata: String,
 }
 
 impl CLTyped for TokenIdentifier {
