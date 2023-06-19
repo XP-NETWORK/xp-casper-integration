@@ -147,6 +147,15 @@ fn require_sig(action_id: U256, data: Vec<u8>, sig_data: &[u8], context: &[u8]) 
     }
 }
 
+pub fn get_contract_hash() -> ContractHash {
+    contract_api::runtime::get_call_stack()
+        .get(0)
+        .unwrap_or_revert_with(BridgeError::FailedToGetCallStack)
+        .contract_hash()
+        .unwrap_or_revert_with(BridgeError::FailedToParseContractHash)
+        .clone()
+}
+
 #[no_mangle]
 pub extern "C" fn init() {
     if utils::named_uref_exists(INITIALIZED) {
@@ -338,22 +347,13 @@ pub fn require_not_paused() {
         BridgeError::MissingGroupKeyUref,
         BridgeError::InvalidGroupKeyUref,
     );
-    let paused: bool = storage::read_or_revert(paused_uref);
+    let paused: bool = storage::read(paused_uref)
+        .unwrap_or_revert_with(BridgeError::FailedToReadContractPausedState)
+        .unwrap_or_revert_with(BridgeError::FailedToReadContractPausedState);
 
     if paused {
         runtime::revert(BridgeError::ContractStatePaused);
     }
-}
-
-pub fn require_tx_fees(amount: U512) {
-    let contract_purse = contract_api::account::get_main_purse();
-    casper_contract::contract_api::system::transfer_from_purse_to_purse(
-        account::get_main_purse(),
-        contract_purse,
-        amount,
-        None,
-    )
-    .unwrap_or_revert_with(BridgeError::FailedToTransferBwPursees)
 }
 
 #[no_mangle]
@@ -465,16 +465,9 @@ pub extern "C" fn validate_unfreeze_nft() {
 
     require_whitelist(data.contract);
 
-    let this_uref = utils::get_uref(
-        THIS_CONTRACT,
-        BridgeError::MissingThisContractUref,
-        BridgeError::InvalidThisContractUref,
-    );
-
-    let this_contract: ContractHash = storage::read_or_revert(this_uref);
     transfer(
         data.contract,
-        this_contract.into(),
+        get_contract_hash().into(),
         data.receiver,
         data.token_id,
     );
@@ -535,7 +528,7 @@ fn require_whitelist(contract: ContractHash) {
     );
 
     let value = storage::dictionary_get::<bool>(whitelist_uref, &contract.to_string())
-        .unwrap_or_revert()
+        .unwrap_or_revert_with(BridgeError::FailedToReadWhitelist)
         .unwrap_or(false);
 
     if !value {
@@ -700,18 +693,10 @@ pub extern "C" fn freeze_nft() {
 
     transfer_tx_fees(data.amt);
 
-    let this_uref = utils::get_uref(
-        THIS_CONTRACT,
-        BridgeError::MissingThisContractUref,
-        BridgeError::InvalidThisContractUref,
-    );
-
-    let this_contract: ContractHash = storage::read_or_revert(this_uref);
-
     transfer(
         data.contract,
-        Key::Account(runtime::get_caller()),
-        this_contract.into(),
+        runtime::get_caller().into(),
+        get_contract_hash().into(),
         data.token_id.clone(),
     );
     let ev = TransferNftEvent {
@@ -809,7 +794,9 @@ fn require_enough_fees(tx_fee: TxFee, sig_data: &[u8]) {
         BridgeError::InvalidArgumentFeePublicKey,
     );
 
-    let group_key: [u8; 32] = storage::read_or_revert(gk_uref);
+    let group_key: [u8; 32] = storage::read(gk_uref)
+        .unwrap_or_revert_with(BridgeError::MissingFeePublicKey)
+        .unwrap_or_revert_with(BridgeError::MissingFeePublicKey);
 
     let mut hasher = Sha512::new();
     hasher.update(fee);
@@ -837,7 +824,9 @@ pub fn transfer_tx_fees(amount: U512) {
         BridgeError::InvalidThisContractUref,
     );
 
-    let this_contract: URef = storage::read_or_revert(this_uref);
+    let this_contract: URef = storage::read(this_uref)
+        .unwrap_or_revert_with(BridgeError::FailedToReadThisContractPurse)
+        .unwrap_or_revert_with(BridgeError::FailedToReadThisContractPurse);
 
     transfer_from_purse_to_purse(account::get_main_purse(), this_contract, amount, None)
         .unwrap_or_revert();

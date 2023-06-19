@@ -68,6 +68,12 @@ pub enum BridgeError {
     FailedToPrepareSignature,
     FailedToGetDictItem,
     FailedToPreparePublicKey,
+    FailedToGetCallStack,
+    FailedToParseContractHash,
+    FailedToReadWhitelist,
+    FailedToReadContractPausedState,
+    MissingFeePublicKey,
+    FailedToReadThisContractPurse,
 }
 
 impl From<BridgeError> for ApiError {
