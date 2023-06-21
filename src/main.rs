@@ -25,9 +25,7 @@ use alloc::{
 // Importing aspects of the Casper platform.
 use casper_contract::{
     contract_api::{
-        self, account,
-        runtime::{self},
-        storage,
+        self, runtime, storage,
         system::{transfer_from_purse_to_account, transfer_from_purse_to_purse},
     },
     unwrap_or_revert::UnwrapOrRevert,
@@ -79,6 +77,7 @@ pub const ARG_FEE_PUBLIC_KEY: &str = "fee_public_key";
 pub const ARG_WHITELIST: &str = "whitelist";
 pub const HASH_KEY_NAME: &str = "bridge_package";
 pub const ACCESS_KEY_NAME: &str = "access_key_name_bridge";
+pub const ARG_SENDER_PURSE: &str = "sender_purse";
 
 fn check_consumed_action(action_id: &U256) -> bool {
     let consumed_actions_uref = utils::get_uref(
@@ -667,6 +666,13 @@ pub extern "C" fn freeze_nft() {
     )
     .unwrap_or_revert();
 
+    let sender_purse: URef = utils::get_named_arg_with_user_errors(
+        ARG_SENDER_PURSE,
+        BridgeError::MissingArgumentSigData,
+        BridgeError::InvalidArgumentSigData,
+    )
+    .unwrap_or_revert();
+
     let data = FreezeNFT {
         amt,
         chain_nonce,
@@ -691,7 +697,7 @@ pub extern "C" fn freeze_nft() {
 
     require_whitelist(data.contract);
 
-    transfer_tx_fees(data.amt);
+    transfer_tx_fees(data.amt, sender_purse);
 
     transfer(
         data.contract,
@@ -753,6 +759,13 @@ pub extern "C" fn withdraw_nft() {
     )
     .unwrap_or_revert();
 
+    let sender_purse: URef = utils::get_named_arg_with_user_errors(
+        ARG_SENDER_PURSE,
+        BridgeError::MissingArgumentSigData,
+        BridgeError::InvalidArgumentSigData,
+    )
+    .unwrap_or_revert();
+
     let data = WithdrawNFT {
         amt,
         chain_nonce,
@@ -772,7 +785,7 @@ pub extern "C" fn withdraw_nft() {
         &data.sig_data,
     );
 
-    transfer_tx_fees(data.amt);
+    transfer_tx_fees(data.amt, sender_purse);
 
     burn(data.contract, data.token_id.clone());
     let ev = UnfreezeNftEvent {
@@ -817,19 +830,14 @@ fn require_enough_fees(tx_fee: TxFee, sig_data: &[u8]) {
     }
 }
 
-pub fn transfer_tx_fees(amount: U512) {
+pub fn transfer_tx_fees(amount: U512, sender_purse: URef) {
     let this_uref = utils::get_uref(
         KEY_PURSE,
         BridgeError::MissingThisContractUref,
         BridgeError::InvalidThisContractUref,
     );
 
-    let this_contract: URef = storage::read(this_uref)
-        .unwrap_or_revert_with(BridgeError::FailedToReadThisContractPurse)
-        .unwrap_or_revert_with(BridgeError::FailedToReadThisContractPurse);
-
-    transfer_from_purse_to_purse(account::get_main_purse(), this_contract, amount, None)
-        .unwrap_or_revert();
+    transfer_from_purse_to_purse(sender_purse, this_uref, amount, None).unwrap_or_revert();
 }
 
 fn generate_entry_points() -> EntryPoints {
@@ -905,6 +913,7 @@ fn generate_entry_points() -> EntryPoints {
             Parameter::new(ARG_CHAIN_NONCE, CLType::U8),
             Parameter::new(ARG_AMOUNT, CLType::U512),
             Parameter::new(ARG_SIG_DATA, CLType::ByteArray(64)),
+            Parameter::new(ARG_SENDER_PURSE, CLType::URef),
         ],
         CLType::Unit,
         EntryPointAccess::Public,
@@ -919,6 +928,7 @@ fn generate_entry_points() -> EntryPoints {
             Parameter::new(ARG_CHAIN_NONCE, CLType::U8),
             Parameter::new(ARG_AMOUNT, CLType::U512),
             Parameter::new(ARG_SIG_DATA, CLType::ByteArray(64)),
+            Parameter::new(ARG_SENDER_PURSE, CLType::URef),
         ],
         CLType::Unit,
         EntryPointAccess::Public,
