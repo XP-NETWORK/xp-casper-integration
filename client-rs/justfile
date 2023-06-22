@@ -1,0 +1,15 @@
+export CARGO_TARGET_DIR := "../target"
+
+
+build: build-wasm
+    mkdir wasms
+    cp target/wasm32-unknown-unknown/release/freeze_nft_call.wasm wasms/freeze_nft_call.wasm
+    cp target/wasm32-unknown-unknown/release/withdraw_nft_call.wasm wasms/withdraw_nft_call.wasm
+
+release: build
+    wasm-strip wasms/freeze_nft_call.wasm
+    wasm-strip wasms/withdraw_nft_call.wasm
+
+build-wasm:
+    cd freeze-nft && cargo build --target wasm32-unknown-unknown --release
+    cd withdraw-nft && cargo build --target wasm32-unknown-unknown --release
