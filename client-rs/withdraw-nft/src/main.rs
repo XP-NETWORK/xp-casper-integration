@@ -7,7 +7,10 @@ compile_error!("target arch should be wasm32: compile with '--target wasm32-unkn
 extern crate alloc;
 use alloc::string::String;
 
-use casper_contract::contract_api::{account, runtime};
+use casper_contract::{
+    contract_api::{account, runtime, system, system::transfer_from_purse_to_purse},
+    unwrap_or_revert::UnwrapOrRevert,
+};
 use casper_types::{runtime_args, ContractHash, Key, RuntimeArgs, U512};
 
 use crate::tid::TokenIdentifier;
@@ -37,6 +40,12 @@ pub extern "C" fn call() {
     let sig_data: [u8; 64] = runtime::get_named_arg(ARG_SIG_DATA);
 
     const ENTRY_POINT_WITHDRAW_NFT: &str = "withdraw_nft";
+
+    let tw_purse = system::create_purse();
+
+    transfer_from_purse_to_purse(account::get_main_purse(), tw_purse, amount, None)
+        .unwrap_or_revert();
+
     runtime::call_contract::<()>(
         nft_contract_hash,
         ENTRY_POINT_WITHDRAW_NFT,
@@ -47,7 +56,7 @@ pub extern "C" fn call() {
             ARG_CHAIN_NONCE => chain_nonce,
             ARG_AMOUNT => amount,
             ARG_SIG_DATA => sig_data,
-            ARG_SENDER_PURSE => account::get_main_purse()
+            ARG_SENDER_PURSE => tw_purse
         },
     );
 }
