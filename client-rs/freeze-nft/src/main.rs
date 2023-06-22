@@ -14,7 +14,7 @@ use casper_contract::{
     },
     unwrap_or_revert::UnwrapOrRevert,
 };
-use casper_types::{runtime_args, ContractHash, Key, RuntimeArgs, U512};
+use casper_types::{runtime_args, ContractHash, RuntimeArgs, U512};
 
 use crate::tid::TokenIdentifier;
 mod tid;
@@ -31,10 +31,8 @@ const ARG_SENDER_PURSE: &str = "sender_purse";
 
 #[no_mangle]
 pub extern "C" fn call() {
-    let nft_contract_hash: ContractHash = runtime::get_named_arg::<Key>(ARG_BRIDGE_CONTRACT_HASH)
-        .into_hash()
-        .map(ContractHash::new)
-        .unwrap();
+    let bridge_contract_hash: ContractHash =
+        runtime::get_named_arg::<ContractHash>(ARG_BRIDGE_CONTRACT_HASH);
 
     let contract: ContractHash = runtime::get_named_arg(ARG_CONTRACT);
     let token_id: TokenIdentifier = runtime::get_named_arg(ARG_TOKEN_ID);
@@ -52,7 +50,7 @@ pub extern "C" fn call() {
         .unwrap_or_revert();
 
     runtime::call_contract::<()>(
-        nft_contract_hash,
+        bridge_contract_hash,
         ENTRY_POINT_FREEZE_NFT,
         runtime_args! {
             ARG_CONTRACT => contract,
