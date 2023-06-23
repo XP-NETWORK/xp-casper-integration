@@ -509,13 +509,11 @@ pub extern "C" fn validate_withdraw_fees() {
         b"ValidateWithdrawFees",
     );
 
-    let this_contract_purse_uref = utils::get_uref(
+    let purse = utils::get_uref(
         KEY_PURSE,
         BridgeError::MissingThisPurseUref,
         BridgeError::InvalidThisPurseUref,
     );
-
-    let purse: URef = storage::read_or_revert(this_contract_purse_uref);
 
     let bal = contract_api::system::get_purse_balance(purse).unwrap_or_else(|| U512::from(0));
     transfer_from_purse_to_account(purse, data.receiver, bal, None).unwrap_or_revert();
