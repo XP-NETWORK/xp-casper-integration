@@ -78,8 +78,8 @@ pub mod xp_nft {
         target_key: Key,
         tid: TokenIdentifier,
     ) {
-        let (_, _) = match tid {
-            TokenIdentifier::Index(idx) => runtime::call_contract::<(String, Key)>(
+        match tid {
+            TokenIdentifier::Index(idx) => runtime::call_contract::<()>(
                 nft_contract,
                 ENTRY_POINT_TRANSFER,
                 runtime_args! {
@@ -88,7 +88,7 @@ pub mod xp_nft {
                     ARG_SOURCE_KEY => source_key
                 },
             ),
-            TokenIdentifier::Hash(token_hash) => runtime::call_contract::<(String, Key)>(
+            TokenIdentifier::Hash(token_hash) => runtime::call_contract::<()>(
                 nft_contract,
                 ENTRY_POINT_TRANSFER,
                 runtime_args! {

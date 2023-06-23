@@ -30,6 +30,7 @@ use casper_contract::{
     },
     unwrap_or_revert::UnwrapOrRevert,
 };
+use casper_event_standard::Schemas;
 // Importing specific Casper types.
 use casper_types::{
     account::AccountHash,
@@ -148,7 +149,8 @@ fn require_sig(action_id: U256, data: Vec<u8>, sig_data: &[u8], context: &[u8]) 
 
 pub fn get_contract_hash() -> ContractHash {
     contract_api::runtime::get_call_stack()
-        .get(0)
+        .iter()
+        .nth_back(0)
         .unwrap_or_revert_with(BridgeError::FailedToGetCallStack)
         .contract_hash()
         .unwrap_or_revert_with(BridgeError::FailedToParseContractHash)
@@ -1023,6 +1025,10 @@ fn install_contract() {
     );
 
     runtime::put_key(THIS_CONTRACT, contract_hash.into());
+    let schemas = Schemas::new()
+        .with::<TransferNftEvent>()
+        .with::<UnfreezeNftEvent>();
+    casper_event_standard::init(schemas);
 }
 
 #[no_mangle]
