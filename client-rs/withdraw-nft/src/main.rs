@@ -13,9 +13,6 @@ use casper_contract::{
 };
 use casper_types::{runtime_args, ContractHash, RuntimeArgs, U512};
 
-use crate::tid::TokenIdentifier;
-mod tid;
-
 const ARG_CONTRACT: &str = "contract";
 const ARG_CHAIN_NONCE: &str = "chain_nonce";
 const ARG_TOKEN_ID: &str = "token_id";
@@ -31,7 +28,7 @@ pub extern "C" fn call() {
         runtime::get_named_arg::<ContractHash>(ARG_BRIDGE_CONTRACT_HASH);
 
     let contract: ContractHash = runtime::get_named_arg(ARG_CONTRACT);
-    let token_id: TokenIdentifier = runtime::get_named_arg(ARG_TOKEN_ID);
+    let token_id: String = runtime::get_named_arg(ARG_TOKEN_ID);
     let to: String = runtime::get_named_arg(ARG_TO);
     let chain_nonce: u8 = runtime::get_named_arg(ARG_CHAIN_NONCE);
     let amount: U512 = runtime::get_named_arg(ARG_AMOUNT);
