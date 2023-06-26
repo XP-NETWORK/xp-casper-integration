@@ -74,6 +74,8 @@ pub enum BridgeError {
     FailedToReadContractPausedState,
     MissingFeePublicKey,
     FailedToReadThisContractPurse,
+    MissingActionCount,
+    InvalidActionCount,
 }
 
 impl From<BridgeError> for ApiError {

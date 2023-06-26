@@ -79,6 +79,7 @@ pub const ARG_WHITELIST: &str = "whitelist";
 pub const HASH_KEY_NAME: &str = "bridge_package";
 pub const ACCESS_KEY_NAME: &str = "access_key_name_bridge";
 pub const ARG_SENDER_PURSE: &str = "sender_purse";
+pub const ACTION_COUNT: &str = "action_count";
 
 fn check_consumed_action(action_id: &U256) -> bool {
     let consumed_actions_uref = utils::get_uref(
@@ -172,6 +173,8 @@ pub extern "C" fn init() {
     runtime::put_key(INITIALIZED, storage::new_uref(true).into());
 
     runtime::put_key(KEY_PAUSED, storage::new_uref(false).into());
+
+    runtime::put_key(ACTION_COUNT, storage::new_uref(0).into());
 
     runtime::put_key(KEY_PURSE, contract_api::system::create_purse().into());
 
@@ -618,6 +621,20 @@ pub extern "C" fn validate_blacklist() {
     storage::dictionary_put(whitelist_uref, &data.contract.to_string(), false)
 }
 
+fn increment_action_count_and_return() -> U256 {
+    let uref = utils::get_uref(
+        ACTION_COUNT,
+        BridgeError::MissingActionCount,
+        BridgeError::InvalidActionCount,
+    );
+
+    let action_count: U256 = storage::read_or_revert(uref);
+
+    let new_action_count = action_count + 1;
+
+    return action_count;
+}
+
 #[no_mangle]
 pub extern "C" fn freeze_nft() {
     require_not_paused();
@@ -705,7 +722,9 @@ pub extern "C" fn freeze_nft() {
         get_contract_hash().into(),
         data.token_id.clone(),
     );
+    let action_id = increment_action_count_and_return();
     let ev = TransferNftEvent {
+        action_id,
         amt: data.amt,
         chain_nonce: data.chain_nonce,
         to: data.to,
@@ -788,7 +807,10 @@ pub extern "C" fn withdraw_nft() {
     transfer_tx_fees(data.amt, sender_purse);
 
     burn(data.contract, data.token_id.clone());
+    let action_id = increment_action_count_and_return();
+
     let ev = UnfreezeNftEvent {
+        action_id,
         amt: data.amt,
         chain_nonce: data.chain_nonce,
         to: data.to,

@@ -2,13 +2,14 @@ use alloc::string::{String, ToString};
 use casper_event_standard::Event;
 use casper_types::{
     bytesrepr::{FromBytes, ToBytes},
-    CLType, CLTyped, U512,
+    CLType, CLTyped, U256, U512,
 };
 
 use crate::external::xp_nft::TokenIdentifier;
 
 #[derive(Clone, Event, Debug)]
 pub struct TransferNftEvent {
+    pub action_id: U256,
     pub chain_nonce: u8,
     pub to: String,
     pub mint_with: String,
@@ -51,6 +52,7 @@ impl ToBytes for TokenIdentifier {
 
 #[derive(Clone, Event, Debug)]
 pub struct UnfreezeNftEvent {
+    pub action_id: U256,
     pub chain_nonce: u8,
     pub to: String,
     pub amt: U512,
