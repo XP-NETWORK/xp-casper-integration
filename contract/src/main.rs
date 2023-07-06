@@ -79,7 +79,7 @@ pub const ARG_WHITELIST: &str = "whitelist";
 pub const HASH_KEY_NAME: &str = "bridge_package";
 pub const ACCESS_KEY_NAME: &str = "access_key_name_bridge";
 pub const ARG_SENDER_PURSE: &str = "sender_purse";
-pub const ACTION_COUNT: &str = "action_count";
+pub const ACTION_COUNT: &str = "action_count_key";
 
 fn check_consumed_action(action_id: &U256) -> bool {
     let consumed_actions_uref = utils::get_uref(
@@ -174,7 +174,7 @@ pub extern "C" fn init() {
 
     runtime::put_key(KEY_PAUSED, storage::new_uref(false).into());
 
-    runtime::put_key(ACTION_COUNT, storage::new_uref(0).into());
+    runtime::put_key(ACTION_COUNT, storage::new_uref(0u64).into());
 
     runtime::put_key(KEY_PURSE, contract_api::system::create_purse().into());
 
@@ -188,6 +188,11 @@ pub extern "C" fn init() {
     whitelist_contracts
         .iter()
         .for_each(|c| storage::dictionary_put(whitelist, &c.to_string(), true));
+
+    let schemas = Schemas::new()
+        .with::<TransferNftEvent>()
+        .with::<UnfreezeNftEvent>();
+    casper_event_standard::init(schemas);
 }
 
 #[no_mangle]
@@ -621,16 +626,17 @@ pub extern "C" fn validate_blacklist() {
     storage::dictionary_put(whitelist_uref, &data.contract.to_string(), false)
 }
 
-fn increment_action_count_and_return() -> U256 {
+fn increment_action_count_and_return() -> u64 {
     let uref = utils::get_uref(
         ACTION_COUNT,
         BridgeError::MissingActionCount,
         BridgeError::InvalidActionCount,
     );
 
-    let action_count: U256 = storage::read_or_revert(uref);
+    let action_count: u64 = storage::read_or_revert(uref);
 
     let new_action_count = action_count + 1;
+    storage::write(uref, new_action_count);
 
     return action_count;
 }
@@ -704,7 +710,7 @@ pub extern "C" fn freeze_nft() {
 
     require_enough_fees(
         TxFee {
-            from: 38,
+            from: 39,
             to: data.chain_nonce,
             receiver: data.to.clone(),
             value: data.amt,
@@ -796,7 +802,7 @@ pub extern "C" fn withdraw_nft() {
 
     require_enough_fees(
         TxFee {
-            from: 38,
+            from: 39,
             to: data.chain_nonce,
             receiver: data.to.clone(),
             value: data.amt,
@@ -1045,10 +1051,6 @@ fn install_contract() {
     );
 
     runtime::put_key(THIS_CONTRACT, contract_hash.into());
-    let schemas = Schemas::new()
-        .with::<TransferNftEvent>()
-        .with::<UnfreezeNftEvent>();
-    casper_event_standard::init(schemas);
 }
 
 #[no_mangle]
