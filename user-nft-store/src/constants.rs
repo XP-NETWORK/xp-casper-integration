@@ -10,6 +10,5 @@ pub const ARG_SENDER_PURSE: &str = "sender_purse";
 pub const ARG_RECEIVER: &str = "receiver";
 pub const ARG_ACTION_ID: &str = "action_id";
 
-pub const KEY_GROUP_KEY: &str = "key_group_key";
 pub const KEY_NWL: &str = "key_nwl";
 pub const RECEIVER_ACC_HASH : &str = "receiver_acc_hash";

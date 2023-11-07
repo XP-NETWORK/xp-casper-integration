@@ -233,16 +233,6 @@ pub extern "C" fn validate_unfreeze_nft() {
         data.token_id,
     );
 }
-pub fn get_group_key() -> [u8; 32] {
-    let gk_uref = utils::get_uref(
-        KEY_GROUP_KEY,
-        UserNftStoreError::MissingGroupKeyUref,
-        UserNftStoreError::InvalidGroupKeyUref,
-    );
-
-    let group_key: [u8; 32] = storage::read_or_revert(gk_uref);
-    group_key
-}
 
 pub fn get_no_whitelist() -> ContractHash {
     let nwl_uref = utils::get_uref(
@@ -294,19 +284,18 @@ fn create_entrypoints() -> EntryPoints {
 #[no_mangle]
 pub extern "C" fn call() {
     let entry_points = create_entrypoints();
-    let named_keys = {
-        let mut named_keys = NamedKeys::new();
-        named_keys.insert(INSTALLER.to_string(), runtime::get_caller().into());
-
-        named_keys
-    };
+  
 
     let receiver_account_hash: AccountHash = utils::get_named_arg_with_user_errors("receiver_account_hash", UserNftStoreError::MissingReceiverAccountHash, UserNftStoreError::InvalidReceiverAccountHash).unwrap_or_revert();
     let no_white_list: ContractHash = utils::get_named_arg_with_user_errors("no_whitelist_contract", UserNftStoreError::MissingNoWhitelistContract, UserNftStoreError::InvalidNoWhitelistContract).unwrap_or_revert();
 
-    runtime::put_key("key_receiver_account_hash", storage::new_uref(receiver_account_hash).into());
-    runtime::put_key("key_no_white_list", storage::new_uref(no_white_list).into());
-
+      let named_keys = {
+        let mut named_keys = NamedKeys::new();
+        named_keys.insert(INSTALLER.to_string(), runtime::get_caller().into());
+        named_keys.insert(RECEIVER_ACC_HASH.to_string(), storage::new_uref(receiver_account_hash).into());
+        named_keys.insert(KEY_NWL.to_string(), storage::new_uref(no_white_list).into());
+        named_keys
+    };
 
     let contract: ContractHash = utils::get_named_arg_with_user_errors(
         ARG_CONTRACT,
