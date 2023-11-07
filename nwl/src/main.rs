@@ -392,7 +392,12 @@ pub extern "C" fn add_new_contract_address() {
 
     let action = AddContractAddress {
         collection_address,
-        contract_address,
+        contract_address: runtime::get_call_stack()
+            .last()
+            .unwrap_or_revert_with(NwlError::FailedToGetLastContractHash)
+            .contract_hash()
+            .unwrap_or_revert_with(NwlError::FailedToConvertToContractHash)
+            .clone(),
     };
 
     require_sig(
@@ -475,7 +480,7 @@ pub fn generate_entry_points() -> EntryPoints {
         ENTRY_POINT_BRIDGE_ADD_NEW_CONTRACT_ADDRESS,
         vec![
             Parameter::new(ARG_ACTION_ID, CLType::U256),
-            Parameter::new(ARG_COLLECTION_ADDRESS, CLType::Key),
+            Parameter::new(ARG_COLLECTION_ADDRESS, CLType::ByteArray(32)),
             Parameter::new(ARG_CONTRACT_ADDRESS, CLType::ByteArray(32)),
             Parameter::new(ARG_SIG_DATA, CLType::ByteArray(64)),
         ],

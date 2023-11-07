@@ -51,6 +51,8 @@ pub enum NwlError {
     FailedToParseContractHash,
     FailedToGetCollectionForContract,
     NoCollectionForContract,
+    FailedToGetLastContractHash,
+    FailedToConvertToContractHash
 }
 
 impl From<NwlError> for ApiError {
