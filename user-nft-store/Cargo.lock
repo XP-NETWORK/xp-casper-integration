@@ -135,15 +135,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
-name = "contract"
-version = "0.1.0"
-dependencies = [
- "casper-contract",
- "casper-event-standard",
- "casper-types",
-]
-
-[[package]]
 name = "cpufeatures"
 version = "0.2.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -639,6 +630,15 @@ name = "unicode-ident"
 version = "1.0.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3354b9ac3fae1ff6755cb6db53683adb661634f67557942dea4facebec0fee4b"
+
+[[package]]
+name = "usernftstore"
+version = "0.1.0"
+dependencies = [
+ "casper-contract",
+ "casper-event-standard",
+ "casper-types",
+]
 
 [[package]]
 name = "version_check"

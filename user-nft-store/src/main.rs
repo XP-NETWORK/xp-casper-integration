@@ -39,6 +39,7 @@ mod external;
 mod structs;
 mod utils;
 
+#[no_mangle]
 pub extern "C" fn freeze_nft() {
     let contract: ContractHash = utils::get_named_arg_with_user_errors(
         ARG_CONTRACT,
@@ -314,8 +315,9 @@ pub extern "C" fn call() {
     )
     .unwrap_or_revert();
 
-    let hash_key_name = format!("freezer_{contract}");
-    let access_key_name = format!("freezer_access_{contract}");
+    let hash_key_name = format!("unfts_{contract}");
+    let access_key_name = format!("unfts_access_{contract}");
+    let contract_hash_key_name = format!("freezer_ch_{contract}");
 
     let (contract_hash, _) = storage::new_contract(
         entry_points,
@@ -324,5 +326,5 @@ pub extern "C" fn call() {
         Some(access_key_name),
     );
 
-    runtime::put_key(THIS_CONTRACT, contract_hash.into());
+    runtime::put_key(&contract_hash_key_name, contract_hash.into());
 }

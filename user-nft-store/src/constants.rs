@@ -1,5 +1,4 @@
 pub const ARG_CONTRACT: &str = "contract";
-pub const THIS_CONTRACT: &str = "this_contract";
 pub const INSTALLER: &str = "installer";
 pub const ARG_CHAIN_NONCE: &str = "chain_nonce";
 pub const ARG_TOKEN_ID: &str = "token_id";
