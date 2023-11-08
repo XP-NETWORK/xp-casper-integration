@@ -33,7 +33,8 @@ pub enum UserNftStoreError {
     UnexpectedKeyVariant,
     FailedToGetArgBytes,
     MissingNoWhitelistContract,
-    InvalidNoWhitelistContract
+    InvalidNoWhitelistContract,
+    AlreadyInitialized
 }
 
 impl From<UserNftStoreError> for ApiError {

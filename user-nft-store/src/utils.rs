@@ -20,6 +20,23 @@ pub(crate) fn to_ptr<T: ToBytes>(t: T) -> (*const u8, usize, Vec<u8>) {
     (ptr, size, bytes)
 }
 
+pub fn named_uref_exists(name: &str) -> bool {
+    let (name_ptr, name_size, _bytes) = to_ptr(name);
+    let mut key_bytes = vec![0u8; Key::max_serialized_length()];
+    let mut total_bytes: usize = 0;
+    let ret = unsafe {
+        ext_ffi::casper_get_key(
+            name_ptr,
+            name_size,
+            key_bytes.as_mut_ptr(),
+            key_bytes.len(),
+            &mut total_bytes as *mut usize,
+        )
+    };
+
+    api_error::result_from(ret).is_ok()
+}
+
 
 
 pub fn get_named_arg_with_user_errors<T: FromBytes>(

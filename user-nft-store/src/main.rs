@@ -11,10 +11,12 @@ use casper_contract::{
     contract_api::{self, runtime, storage},
     unwrap_or_revert::UnwrapOrRevert,
 };
+use casper_event_standard::Schemas;
 use casper_types::account::AccountHash;
+use casper_types::runtime_args;
 use casper_types::{
     bytesrepr::serialize, contracts::NamedKeys, CLType, ContractHash, EntryPoint, EntryPointAccess,
-    EntryPointType, EntryPoints, Key, Parameter, URef, U256, U512,
+    EntryPointType, EntryPoints, Key, Parameter, RuntimeArgs, URef, U256, U512,
 };
 
 use errors::UserNftStoreError;
@@ -245,8 +247,27 @@ pub fn get_no_whitelist() -> ContractHash {
     nwl
 }
 
+#[no_mangle]
+pub extern "C" fn init() {
+    const INITIALIZED: &str = "initialized";
+    if utils::named_uref_exists(INITIALIZED) {
+        runtime::revert(UserNftStoreError::AlreadyInitialized);
+    }
+    let schemas = Schemas::new().with::<TransferNftEvent>();
+    casper_event_standard::init(schemas);
+    runtime::put_key(INITIALIZED, storage::new_uref(true).into());
+}
+
 fn create_entrypoints() -> EntryPoints {
     let mut entry_points = EntryPoints::new();
+
+    entry_points.add_entry_point(EntryPoint::new(
+        "init",
+        vec![],
+        CLType::Unit,
+        EntryPointAccess::Public,
+        EntryPointType::Contract,
+    ));
 
     entry_points.add_entry_point(EntryPoint::new(
         "freeze_nft",
@@ -284,15 +305,27 @@ fn create_entrypoints() -> EntryPoints {
 #[no_mangle]
 pub extern "C" fn call() {
     let entry_points = create_entrypoints();
-  
 
-    let receiver_account_hash: AccountHash = utils::get_named_arg_with_user_errors("receiver_account_hash", UserNftStoreError::MissingReceiverAccountHash, UserNftStoreError::InvalidReceiverAccountHash).unwrap_or_revert();
-    let no_white_list: ContractHash = utils::get_named_arg_with_user_errors("no_whitelist_contract", UserNftStoreError::MissingNoWhitelistContract, UserNftStoreError::InvalidNoWhitelistContract).unwrap_or_revert();
+    let receiver_account_hash: AccountHash = utils::get_named_arg_with_user_errors(
+        "receiver_account_hash",
+        UserNftStoreError::MissingReceiverAccountHash,
+        UserNftStoreError::InvalidReceiverAccountHash,
+    )
+    .unwrap_or_revert();
+    let no_white_list: ContractHash = utils::get_named_arg_with_user_errors(
+        "no_whitelist_contract",
+        UserNftStoreError::MissingNoWhitelistContract,
+        UserNftStoreError::InvalidNoWhitelistContract,
+    )
+    .unwrap_or_revert();
 
-      let named_keys = {
+    let named_keys = {
         let mut named_keys = NamedKeys::new();
         named_keys.insert(INSTALLER.to_string(), runtime::get_caller().into());
-        named_keys.insert(RECEIVER_ACC_HASH.to_string(), storage::new_uref(receiver_account_hash).into());
+        named_keys.insert(
+            RECEIVER_ACC_HASH.to_string(),
+            storage::new_uref(receiver_account_hash).into(),
+        );
         named_keys.insert(KEY_NWL.to_string(), storage::new_uref(no_white_list).into());
         named_keys
     };
@@ -316,4 +349,5 @@ pub extern "C" fn call() {
     );
 
     runtime::put_key(&contract_hash_key_name, contract_hash.into());
+    runtime::call_contract::<()>(contract_hash, "init", runtime_args! {});
 }
