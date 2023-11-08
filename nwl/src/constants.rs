@@ -19,7 +19,8 @@ pub const CONTRACT_TO_COLLECTION_DICT: &str = "contract_to_collection_dict";
 
 pub const INSTALLER: &str = "installer";
 pub const THIS_CONTRACT: &str = "no_whitelist";
-
+pub const ENTRY_POINT_INIT_CONTRACT: &str = "init";
+pub const INITIALIZED: &str = "initialized";
 pub const ENTRY_POINT_BRIDGE_VALIDATE_WITHDRAW_FEES: &str = "validate_withdraw_fees";
 pub const ENTRY_POINT_BRIDGE_VALIDATE_UPDATE_GK: &str = "validate_update_group_key";
 pub const ENTRY_POINT_BRIDGE_VALIDATE_UPDATE_FEE_PK: &str = "validate_update_fee_pk";

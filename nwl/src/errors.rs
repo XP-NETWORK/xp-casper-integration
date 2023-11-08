@@ -52,7 +52,17 @@ pub enum NwlError {
     FailedToGetCollectionForContract,
     NoCollectionForContract,
     FailedToGetLastContractHash,
-    FailedToConvertToContractHash
+    FailedToConvertToContractHash,
+    FailedToCreateConsumedDictDictionary,
+    FailedToCreateContractToCollectionDict,
+    FailedToCollectionToContractDict,
+    AlreadyInitialized,
+    MissingArgumentSigDataInFee,
+    InvalidArgumentSigDataInFee,
+    MissingArgumentDataInFee,
+    InvalidArgumentDataInFee,
+    MissingArgumentContext,
+    InvalidArgumentContext,
 }
 
 impl From<NwlError> for ApiError {

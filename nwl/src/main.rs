@@ -10,18 +10,21 @@ extern crate alloc;
 
 use core::convert::TryInto;
 
+use alloc::boxed::Box;
 use alloc::vec;
 use alloc::vec::Vec;
 use alloc::{format, string::ToString};
 
+use casper_contract::contract_api::runtime::call_contract;
 use casper_contract::{
     contract_api::{self, runtime, storage, system::transfer_from_purse_to_account},
     unwrap_or_revert::UnwrapOrRevert,
 };
+use casper_types::runtime_args;
 use casper_types::{
     account::AccountHash, bytesrepr::serialize, contracts::NamedKeys, CLType, CLValue,
-    ContractHash, EntryPoint, EntryPointAccess, EntryPointType, EntryPoints, Parameter, URef, U256,
-    U512,
+    ContractHash, EntryPoint, EntryPointAccess, EntryPointType, EntryPoints, Parameter,
+    RuntimeArgs, URef, U256, U512,
 };
 
 use constants::*;
@@ -42,15 +45,15 @@ fn require_only_allowed(contract_hash: ContractHash) {
         NwlError::InvalidContractToCollectionUref,
     );
 
-    storage::dictionary_get::<ContractHash>(dict_uref, &contract_hash.to_formatted_string())
+    storage::dictionary_get::<ContractHash>(dict_uref, &contract_hash.to_string())
         .unwrap_or_revert_with(NwlError::FailedToGetCollectionForContract)
         .unwrap_or_revert_with(NwlError::NoCollectionForContract);
 }
 
-pub fn get_contract_hash() -> ContractHash {
+pub fn get_caller_hash() -> ContractHash {
     contract_api::runtime::get_call_stack()
         .iter()
-        .nth_back(0)
+        .nth_back(1)
         .unwrap_or_revert_with(NwlError::FailedToGetCallStack)
         .contract_hash()
         .unwrap_or_revert_with(NwlError::FailedToParseContractHash)
@@ -59,7 +62,7 @@ pub fn get_contract_hash() -> ContractHash {
 
 #[no_mangle]
 pub extern "C" fn increment_action_count() {
-    require_only_allowed(get_contract_hash());
+    require_only_allowed(get_caller_hash());
     let uref = utils::get_uref(
         ACTION_COUNT,
         NwlError::MissingActionCount,
@@ -70,6 +73,7 @@ pub extern "C" fn increment_action_count() {
 
     let new_action_count = action_count + 1;
     storage::write(uref, new_action_count);
+    runtime::ret(CLValue::from_t(true).unwrap())
 }
 
 #[no_mangle]
@@ -256,14 +260,14 @@ pub extern "C" fn require_sig_verification() {
     .unwrap_or_revert();
     let sig_data: Vec<u8> = utils::get_named_arg_with_user_errors(
         "sig_data",
-        NwlError::MissingArgumentData,
-        NwlError::InvalidArgumentData,
+        NwlError::MissingArgumentSigData,
+        NwlError::InvalidArgumentSigData,
     )
     .unwrap_or_revert();
     let context: Vec<u8> = utils::get_named_arg_with_user_errors(
         "context",
-        NwlError::MissingArgumentData,
-        NwlError::InvalidArgumentData,
+        NwlError::MissingArgumentContext,
+        NwlError::InvalidArgumentContext,
     )
     .unwrap_or_revert();
 
@@ -320,14 +324,14 @@ pub extern "C" fn validate_withdraw_fees() {
 pub extern "C" fn require_enough_fees() {
     let fee: Vec<u8> = utils::get_named_arg_with_user_errors(
         "data",
-        NwlError::MissingArgumentData,
-        NwlError::InvalidArgumentData,
+        NwlError::MissingArgumentDataInFee,
+        NwlError::InvalidArgumentDataInFee,
     )
     .unwrap_or_revert();
     let sig_data: Vec<u8> = utils::get_named_arg_with_user_errors(
         "sig_data",
-        NwlError::MissingArgumentData,
-        NwlError::InvalidArgumentData,
+        NwlError::MissingArgumentSigDataInFee,
+        NwlError::InvalidArgumentSigDataInFee,
     )
     .unwrap_or_revert();
 
@@ -420,13 +424,13 @@ pub extern "C" fn add_new_contract_address() {
 
     storage::dictionary_put(
         collection_to_contract,
-        &collection_address.to_formatted_string(),
+        &collection_address.to_string(),
         contract_address,
     );
 
     storage::dictionary_put(
         contract_to_collection,
-        &contract_address.to_formatted_string(),
+        &contract_address.to_string(),
         collection_address,
     );
 }
@@ -476,6 +480,15 @@ pub extern "C" fn validate_update_fee_pk() {
 }
 
 pub fn generate_entry_points() -> EntryPoints {
+    
+    let init = EntryPoint::new(
+        ENTRY_POINT_INIT_CONTRACT,
+        vec![],
+        CLType::Unit,
+        EntryPointAccess::Public,
+        EntryPointType::Contract,
+    );
+
     let add_contract_address = EntryPoint::new(
         ENTRY_POINT_BRIDGE_ADD_NEW_CONTRACT_ADDRESS,
         vec![
@@ -537,15 +550,55 @@ pub fn generate_entry_points() -> EntryPoints {
         EntryPointAccess::Public,
         EntryPointType::Contract,
     );
+    let require_enough_fees = EntryPoint::new(
+        "require_enough_fees",
+        vec![
+            Parameter::new("data", CLType::List(Box::new(CLType::U8))),
+            Parameter::new("sig_data", CLType::List(Box::new(CLType::U8))),
+        ],
+        CLType::Unit,
+        EntryPointAccess::Public,
+        EntryPointType::Contract,
+    );
+    let require_sig_verification = EntryPoint::new(
+        "require_sig_verification",
+        vec![
+            Parameter::new("action_id", CLType::U256),
+            Parameter::new("data", CLType::List(Box::new(CLType::U8))),
+            Parameter::new("sig_data", CLType::List(Box::new(CLType::U8))),
+            Parameter::new("context", CLType::List(Box::new(CLType::U8))),
+        ],
+        CLType::Unit,
+        EntryPointAccess::Public,
+        EntryPointType::Contract,
+    );
 
     let mut eps = EntryPoints::new();
+
+    eps.add_entry_point(init);
     eps.add_entry_point(validate_withdraw_fees);
     eps.add_entry_point(validate_update_fee_pk);
     eps.add_entry_point(validate_update_group_key);
     eps.add_entry_point(add_contract_address);
     eps.add_entry_point(get_action_count);
     eps.add_entry_point(increment_action_count);
+    eps.add_entry_point(require_enough_fees);
+    eps.add_entry_point(require_sig_verification);
     eps
+}
+
+#[no_mangle]
+pub extern "C" fn init() {
+    if utils::named_uref_exists(INITIALIZED) {
+        runtime::revert(NwlError::AlreadyInitialized);
+    }
+    storage::new_dictionary(KEY_CONSUMED_ACTIONS_DICT)
+        .unwrap_or_revert_with(NwlError::FailedToCreateConsumedDictDictionary);
+    storage::new_dictionary(CONTRACT_TO_COLLECTION_DICT)
+        .unwrap_or_revert_with(NwlError::FailedToCreateContractToCollectionDict);
+    storage::new_dictionary(COLLECTION_TO_CONTRACT_DICT)
+        .unwrap_or_revert_with(NwlError::FailedToCollectionToContractDict);
+    runtime::put_key(INITIALIZED, storage::new_uref(true).into());
 }
 
 #[no_mangle]
@@ -554,16 +607,27 @@ pub extern "C" fn call() {
     let fee_public_key: [u8; 32] = runtime::get_named_arg(ARG_FEE_PUBLIC_KEY);
     let action_count: U256 = runtime::get_named_arg(ARG_ACTION_COUNT);
 
-    runtime::put_key(KEY_GROUP_KEY, storage::new_uref(group_key).into());
-    runtime::put_key(KEY_FEE_PUBLIC_KEY, storage::new_uref(fee_public_key).into());
-    runtime::put_key(KEY_ACTION_COUNT, storage::new_uref(action_count).into());
-    runtime::put_key(KEY_PURSE, contract_api::system::create_purse().into());
-
     let entry_points = generate_entry_points();
     let named_keys = {
         let mut named_keys = NamedKeys::new();
         named_keys.insert(INSTALLER.to_string(), runtime::get_caller().into());
-
+        named_keys.insert(
+            KEY_GROUP_KEY.to_string(),
+            storage::new_uref(group_key).into(),
+        );
+        named_keys.insert(
+            KEY_FEE_PUBLIC_KEY.to_string(),
+            storage::new_uref(fee_public_key).into(),
+        );
+        named_keys.insert(
+            KEY_ACTION_COUNT.to_string(),
+            storage::new_uref(action_count).into(),
+        );
+        named_keys.insert(
+            KEY_PURSE.to_string(),
+            contract_api::system::create_purse().into(),
+        );
+        named_keys.insert(ACTION_COUNT.to_string(), storage::new_uref(0u64).into());
         named_keys
     };
 
@@ -582,4 +646,5 @@ pub extern "C" fn call() {
         &(THIS_CONTRACT.to_string() + &num.to_string()),
         contract_hash.into(),
     );
+    call_contract::<()>(contract_hash, ENTRY_POINT_INIT_CONTRACT, runtime_args! {});
 }
