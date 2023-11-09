@@ -129,7 +129,7 @@ pub mod nwl {
             "context" => context.to_vec(),
         };
 
-        runtime::call_contract(nwl, "require_sig_config", args)
+        runtime::call_contract(nwl, "require_sig_verification", args)
     }
 
     pub fn require_enough_fees(nwl: ContractHash, data: Vec<u8>, sig_data: &[u8]) {
